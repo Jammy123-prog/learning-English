@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 /* ============================================================
-   EverWord 新闻抓取器 v1.2（零依赖，Node ≥ 18）
+   EverWord 新闻抓取器 v1.3（零依赖，Node ≥ 18）
    运行：node tools/fetch-news.js
    作用：抓取主流英文媒体 RSS → js/news-data.js（本地快照，供 file:// 模式）
-   版权策略：只保存「标题 / 链接 / 来源 / 日期 / 摘要片段」等元数据，
-             不复制正文；点击跳转原文出处阅读。
-   默认源：CGTN 各版块（中国网络直连可达）；可在 FEEDS 中追加任意 RSS
-         （如经济学人 / 卫视 / 路透镜像——网络可达时自动生效）。
+   版权策略：快照只保存「标题 / 链接 / 来源 / 日期 / 摘要片段」等元数据，
+             不复制正文；点击跳转原文出处阅读。正文仅由服务器模式
+             （node server/server.js）运行时缓存于本机 data/ 供精读。
+   默认源：CGTN 8 版块（中国网络直连可达）；可在 FEEDS 中追加任意 RSS
+         （如经济学人 / 卫报——网络可达时自动生效）。
    ============================================================ */
 "use strict";
 
@@ -18,6 +19,7 @@ const OUT = path.join(ROOT, "js", "news-data.js");
 
 const FEEDS = [
   { url: "https://www.cgtn.com/subscribe/rss/section/world.xml",    topic: "政治·世界", source: "CGTN" },
+  { url: "https://www.cgtn.com/subscribe/rss/section/politics.xml", topic: "政治·时政", source: "CGTN" },
   { url: "https://www.cgtn.com/subscribe/rss/section/business.xml", topic: "财经·商业", source: "CGTN" },
   { url: "https://www.cgtn.com/subscribe/rss/section/culture.xml",  topic: "文化·艺术", source: "CGTN" },
   { url: "https://www.cgtn.com/subscribe/rss/section/opinion.xml",  topic: "观点·评论", source: "CGTN" },

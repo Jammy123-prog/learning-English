@@ -68,6 +68,47 @@
       <p class="ns-note" id="ns-note"></p>
     </div>
   </section>
+
+  <!-- 新闻精读浮层：服务器模式下点「精读」打开（悬浮取词 + TTS + 新闻热词栏） -->
+  <div class="ns-reader" id="ns-reader" hidden>
+    <div class="nsr-panel">
+      <div class="nsr-head">
+        <div class="nsr-meta">
+          <span class="nsr-src" id="nsr-src"></span>
+          <span id="nsr-topic"></span>
+          <span id="nsr-date"></span>
+        </div>
+        <button class="nsr-close" id="nsr-close" aria-label="关闭精读">✕ 关闭</button>
+      </div>
+      <div class="nsr-grid">
+        <div class="nsr-main">
+          <h2 class="nsr-title" id="nsr-title"></h2>
+          <p class="nsr-src-note">
+            <a id="nsr-link" target="_blank" rel="noopener noreferrer">阅读原文 ↗</a> · 正文缓存自来源媒体 RSS/页面，仅供个人学习
+          </p>
+          <div class="a-bar">
+            <button class="btn btn-ghost btn-sm" id="nsr-play"><svg class="ic" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg><span>播放全文</span></button>
+            <button class="btn btn-ghost btn-sm" id="nsr-stop"><svg class="ic" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg><span>停止</span></button>
+            <div class="rate" id="nsr-rate">
+              <span>语速</span>
+              <button data-r="0.8">0.8×</button>
+              <button data-r="1" class="active">1×</button>
+              <button data-r="1.2">1.2×</button>
+            </div>
+          </div>
+          <div class="prose" id="nsr-prose"></div>
+        </div>
+        <aside class="vocab-rail nsr-rail" aria-label="新闻热词">
+          <div class="vr-head">
+            <span class="vr-title">新闻热词</span>
+            <span class="vr-count" id="nsr-count">0</span>
+          </div>
+          <p class="vr-sub">点击词条定位正文 · 悬停取词</p>
+          <div id="nsr-vr"></div>
+        </aside>
+      </div>
+    </div>
+  </div>
 </main>
 
 <footer class="foot">
@@ -138,8 +179,8 @@
     if (/ly$/.test(k)) c.push(k.slice(0, -2));
     return c;
   }
-  function locateWord(key) {
-    const prose = document.getElementById("prose");
+  function locateWord(key, proseEl) {
+    const prose = proseEl || document.getElementById("prose");
     if (!prose) return;
     const toks = prose.querySelectorAll(".tk-x");
     for (const t of toks) {
@@ -152,7 +193,7 @@
         return;
       }
     }
-    toast("「" + key + "」在当前段落没有高亮形态，可悬停正文查词");
+    toast("「" + key + "」在当前正文没有高亮形态，可悬停正文查词");
   }
 
   vrList.addEventListener("click", e => {
@@ -172,20 +213,28 @@
     if (item) locateWord(item.dataset.k);
   });
 
-  /* 正文 → 词栏联动：悬停命中词时高亮右侧词条 */
+  /* 正文 → 词栏联动：悬停命中词时高亮词条（文章词栏 + 精读词栏同时生效） */
+  function railEls() {
+    const els = [vrList];
+    const nr = document.getElementById("nsr-vr");
+    if (nr) els.push(nr);
+    return els;
+  }
   document.addEventListener("mouseover", e => {
     const tk = e.target.closest && e.target.closest(".tk-x");
     if (!tk) return;
     const raw = String(tk.dataset.w || "").toLowerCase();
     const key = stemCands(raw).find(k => DICT[k]);
     if (!key) return;
-    vrList.querySelectorAll(".vr-item.on").forEach(x => x.classList.remove("on"));
-    const item = vrList.querySelector('.vr-item[data-k="' + key + '"]');
-    if (item) item.classList.add("on");
+    railEls().forEach(list => {
+      list.querySelectorAll(".vr-item.on").forEach(x => x.classList.remove("on"));
+      const item = list.querySelector('.vr-item[data-k="' + key + '"]');
+      if (item) item.classList.add("on");
+    });
   });
   document.addEventListener("mouseout", e => {
     if (e.target.closest && e.target.closest(".tk-x")) {
-      vrList.querySelectorAll(".vr-item.on").forEach(x => x.classList.remove("on"));
+      railEls().forEach(list => list.querySelectorAll(".vr-item.on").forEach(x => x.classList.remove("on")));
     }
   });
 
@@ -262,7 +311,7 @@
 
   render();
 
-  /* ================= 新闻速览（主流媒体 RSS 元数据，点击跳原文） ================= */
+  /* ================= 新闻速览（多源：CGTN RSS + China Daily；元数据 + 可精读全文） ================= */
   const nsList = document.getElementById("ns-list");
   const nsChips = document.getElementById("ns-chips");
   const nsBadge = document.getElementById("ns-badge");
@@ -293,19 +342,27 @@
         '<div class="ns-meta"><span class="ns-src">' + escHtml(x.s || "媒体") + "</span>" +
         (x.tp ? "<span>" + escHtml(x.tp) + "</span>" : "") +
         (fmtDate(x.d) ? "<span>" + fmtDate(x.d) + "</span>" : "") + "</div>" +
-        '<a class="ns-link" href="' + escHtml(x.u) + '" target="_blank" rel="noopener noreferrer">' + escHtml(x.t) + "</a>" +
+        '<div class="ns-tt">' +
+          '<a class="ns-link" href="' + escHtml(x.u) + '" target="_blank" rel="noopener noreferrer">' + escHtml(x.t) + "</a>" +
+          (x.c ? '<button class="ns-read" data-id="' + x.id + '" title="站内精读：悬浮取词 · 发音 · 生词本">精读</button>' : "") +
+        "</div>" +
         (x.x ? '<p class="ns-x">' + escHtml(x.x) + "</p>" : "") +
       "</div>").join("");
   }
 
   function applyNews(payload, live) {
-    nsItems = (payload.items || []).map(x => ({ t: x.t || x.title, u: x.u || x.link, s: x.s || x.source, tp: x.tp || x.topic, d: x.d || x.published, x: x.x || x.summary }));
+    nsItems = (payload.items || []).map(x => ({
+      id: x.id || 0, c: x.c ? 1 : 0,
+      t: x.t || x.title, u: x.u || x.link, s: x.s || x.source,
+      tp: x.tp || x.topic, d: x.d || x.published, x: x.x || x.summary
+    }));
     nsTopics = payload.topics || [...new Set(nsItems.map(x => x.tp))];
     nsBadge.textContent = live ? "实时" : "快照";
     nsBadge.classList.toggle("snap", !live);
     nsNote.textContent = live
-      ? "标题与摘要来自各媒体公开 RSS（共 " + (payload.total || nsItems.length) + " 条已入库，持续累积）；点击标题跳转原文出处阅读。"
-      : "当前为内置快照（" + nsItems.length + " 条）；启动 node server/server.js 后可实时刷新并累积更多条目。";
+      ? "来源：CGTN 八版块 RSS 与 China Daily 七频道（共 " + (payload.total || nsItems.length) +
+        " 条已入库，" + (payload.readable || 0) + " 条可站内精读，持续累积）；「精读」站内阅读，或点标题跳原文。"
+      : "当前为内置快照（" + nsItems.length + " 条）；启动 node server/server.js 后可实时刷新、抓取 China Daily 并精读全文。";
     nsRefresh.hidden = !IS_SERVER;
     renderNews();
   }
@@ -314,7 +371,7 @@
     if (IS_SERVER) {
       try {
         const q = "/api/news?limit=60" + (nsTopic ? "&topic=" + encodeURIComponent(nsTopic) : "") + (force ? "&refresh=1" : "");
-        const r = await fetch(q, { signal: AbortSignal.timeout(9000) });
+        const r = await fetch(q, { signal: AbortSignal.timeout(20000) });
         if (r.ok) { applyNews(await r.json(), true); return; }
       } catch (e) { /* 超时或网络异常 → 落回快照 */ }
     }
@@ -330,7 +387,117 @@
     loadNews(true).then(() => { nsRefresh.textContent = "刷新"; });
   });
 
+  nsList.addEventListener("click", e => {
+    const btn = e.target.closest(".ns-read");
+    if (btn) openReader(parseInt(btn.dataset.id, 10));
+  });
+
   loadNews(false);
+
+  /* ================= 新闻精读浮层 ================= */
+  const nsReader = document.getElementById("ns-reader");
+  const nsrTitle = document.getElementById("nsr-title");
+  const nsrSrc = document.getElementById("nsr-src");
+  const nsrTopicEl = document.getElementById("nsr-topic");
+  const nsrDate = document.getElementById("nsr-date");
+  const nsrLink = document.getElementById("nsr-link");
+  const nsrProse = document.getElementById("nsr-prose");
+  const nsrVr = document.getElementById("nsr-vr");
+  const nsrCount = document.getElementById("nsr-count");
+  let nsrParas = [], nsrRateV = 1;
+
+  /* 从正文中抽取词典命中的「新闻热词」（词形还原，按出现顺序，最多 24 个） */
+  function newsVocab(paras) {
+    const tokens = (paras.join(" ").match(/[A-Za-z][A-Za-z'’-]{2,}/g) || []).map(t => t.toLowerCase());
+    const seen = new Set(), hits = [];
+    for (const t of tokens) {
+      for (const c of stemCands(t)) {
+        if (DICT[c] && !seen.has(c)) {
+          seen.add(c);
+          const g = DICT[c];
+          hits.push({ k: c, pos: g.pos || "", def: g.def, ipa: g.ipa || "" });
+        }
+      }
+    }
+    return hits.slice(0, 24);
+  }
+  function renderNsrRail() {
+    const hits = newsVocab(nsrParas);
+    nsrCount.textContent = hits.length;
+    nsrVr.innerHTML = hits.map(h =>
+      '<div class="vr-item" data-k="' + escHtml(h.k) + '">' +
+        '<div class="vr-row">' +
+          '<span class="vr-w">' + escHtml(h.k) + "</span>" +
+          '<span class="vr-pos">' + escHtml(h.pos) + "</span>" +
+          '<button class="vr-mini" data-act="say" data-w="' + escHtml(h.k) + '">' + ICONS.speaker + "<span>发音</span></button>" +
+          '<button class="vr-mini" data-act="add" data-w="' + escHtml(h.k) + '">' + ICONS.plus + "<span>生词本</span></button>" +
+        "</div>" +
+        (h.ipa ? '<div class="vr-ipa">' + escHtml(h.ipa) + "</div>" : "") +
+        '<div class="vr-def">' + escHtml(h.def) + "</div>" +
+      "</div>").join("");
+  }
+
+  nsrVr.addEventListener("click", e => {
+    const btn = e.target.closest("[data-act]");
+    const item = e.target.closest(".vr-item");
+    if (btn) {
+      const w = btn.dataset.w;
+      if (btn.dataset.act === "say") {
+        if (!TTS.speak(w)) toast("当前浏览器不支持语音合成");
+      } else {
+        const hit = DICT[w];
+        const added = SRS.addWord(w, hit ? { w, ipa: hit.ipa || "", pos: hit.pos, def: hit.def, ex: "", exZh: "", lv: "阅读" } : null);
+        toast(added ? "已加入生词本，明日开始复习" : "已在生词本中");
+      }
+      return;
+    }
+    if (item) locateWord(item.dataset.k, nsrProse);
+  });
+
+  async function openReader(id) {
+    if (!id) return;
+    try {
+      const r = await fetch("/api/news/item?id=" + id, { signal: AbortSignal.timeout(9000) });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const data = await r.json();
+      const it = data.item;
+      if (!it || !it.paras || !it.paras.length) { toast("该条目暂无精读正文，请点击标题跳原文阅读"); return; }
+      nsrParas = it.paras;
+      nsrTitle.textContent = it.title;
+      nsrSrc.textContent = it.source || "媒体";
+      nsrTopicEl.textContent = it.topic || "";
+      nsrDate.textContent = fmtDate(it.published);
+      nsrLink.href = it.link;
+      nsrProse.innerHTML = it.paras.map(p => "<p>" + escHtml(p) + "</p>").join("");
+      renderNsrRail();
+      Dictip.bind(nsrProse);
+      nsReader.hidden = false;
+      nsReader.querySelector(".nsr-panel").scrollTop = 0;
+    } catch (e) {
+      toast("精读加载失败——精读需服务器模式（node server/server.js）");
+    }
+  }
+  function closeReader() {
+    TTS.stop();
+    nsReader.hidden = true;
+  }
+  document.getElementById("nsr-close").addEventListener("click", closeReader);
+  nsReader.addEventListener("click", e => { if (e.target === nsReader) closeReader(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !nsReader.hidden) closeReader(); });
+
+  document.getElementById("nsr-play").addEventListener("click", () => {
+    if (!TTS.ok) { toast("当前浏览器不支持语音合成"); return; }
+    const text = nsrParas.join(" ");
+    const sents = (text.match(/[^.!?]+[.!?]+["']?\s*/g) || [text]).map(s => s.trim()).filter(Boolean);
+    TTS.speakSeq(sents, nsrRateV);
+  });
+  document.getElementById("nsr-stop").addEventListener("click", () => TTS.stop());
+  const nsrRateEl = document.getElementById("nsr-rate");
+  nsrRateEl.querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => {
+      nsrRateV = parseFloat(b.dataset.r);
+      nsrRateEl.querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+    }));
 })();
 </script>
 </body>

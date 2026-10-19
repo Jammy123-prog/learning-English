@@ -583,6 +583,407 @@ const ARTICLES = [
       "squander":     { pos: "v.",   def: "浪费；挥霍" },
       "longevity":    { pos: "n.",   def: "长寿；寿命" }
     }
+  },
+  {
+    id: "a15", lv: 1, lvName: "低", topic: "科技·社会",
+    title: "The Age of Short Videos",
+    titleZh: "短视频时代",
+    paras: [
+      "Ten years ago, most people watched films that lasted two hours. Today, hundreds of millions of people watch videos that last only fifteen seconds. Short videos have quietly changed the way we spend our free time, and young people feel the change most.",
+      "Why are these videos so popular? The answer is simple: they ask for almost nothing. You need no time, no preparation and very little attention. One video ends, and the next one starts immediately. The application studies what you watch and then decides what to show you next, so every screen feels personal.",
+      "This comfort has a cost. Many users plan to watch for 'just five minutes' and then discover that two hours have passed. Teachers say students find long articles harder to finish than before. Doctors give the problem a serious name: the weakening of attention. Like a muscle that is never trained for effort, the mind slowly loses its power to focus.",
+      "Yet short videos are not the enemy. A sixty-second clip can teach you how to fix a bicycle, how to cook noodles, or how a law is made. Small shops use them to show products to millions of customers at almost no cost. For people with busy lives, short does not always mean shallow.",
+      "The wise answer is balance. Decide in advance how long you will watch, and let a timer make the decision for you. Enjoy the fun, but protect the deeper pleasures: long films, real conversations, thick books. Attention is the raw material of every human skill — spend it like money, not like sand."
+    ],
+    gloss: {
+      "popular":        { pos: "adj.", def: "受欢迎的；流行的" },
+      "preparation":    { pos: "n.",   def: "准备；预备" },
+      "attention":      { pos: "n.",   def: "注意力；关注" },
+      "immediately":    { pos: "adv.", def: "立刻；马上" },
+      "application":    { pos: "n.",   def: "应用程序；应用" },
+      "discover":       { pos: "v.",   def: "发现；察觉" },
+      "muscle":         { pos: "n.",   def: "肌肉" },
+      "product":        { pos: "n.",   def: "产品；制品" },
+      "customer":       { pos: "n.",   def: "顾客；客户" },
+      "balance":        { pos: "n.",   def: "平衡；均衡" },
+      "timer":          { pos: "n.",   def: "计时器；定时器" },
+      "raw":            { pos: "adj.", def: "原始的；未加工的" }
+    }
+  },
+  {
+    id: "a16", lv: 1, lvName: "低", topic: "生活·环境",
+    title: "Bikes Are Coming Back",
+    titleZh: "自行车回来了",
+    paras: [
+      "For much of the twentieth century, the bicycle lost ground in big cities. Roads grew wide for cars, riders disappeared, and cycling became something children did in the park. Now, in city after city, the bicycle is coming back — and it is bringing quieter streets with it.",
+      "The change begins with paint. City governments turn traffic lanes into protected bike lanes, so that ordinary people feel safe riding to work. In many places you can rent a bicycle with an app, ride it across town, and leave it near your office. The price is often lower than a bus ticket.",
+      "Riding is also gentle exercise built into daily life. It costs nothing after the first payment, makes the heart stronger, and helps people sleep better at night. Unlike a gym, a bicycle takes you somewhere useful while it trains you.",
+      "Cities have their own reasons to celebrate. A road can move far more bicycles than cars in an hour. Every rider means less noise, less traffic and cleaner air, which is why doctors and mayors sometimes make the same argument.",
+      "Of course, rain, cold and steep hills are real, and not every city is flat and friendly. But attitudes are changing. The bicycle is no longer a toy of the past; it is a serious tool for the future of city life."
+    ],
+    gloss: {
+      "bicycle":     { pos: "n.",   def: "自行车" },
+      "rider":       { pos: "n.",   def: "骑车的人" },
+      "disappear":   { pos: "v.",   def: "消失；不见" },
+      "government":  { pos: "n.",   def: "政府" },
+      "lane":        { pos: "n.",   def: "车道；小路" },
+      "rent":        { pos: "v.",   def: "租用；出租" },
+      "payment":     { pos: "n.",   def: "支付；付款" },
+      "heart":       { pos: "n.",   def: "心脏" },
+      "traffic":     { pos: "n.",   def: "交通；车流" },
+      "noise":       { pos: "n.",   def: "噪声；喧闹声" },
+      "steep":       { pos: "adj.", def: "陡的；险峻的" },
+      "tool":        { pos: "n.",   def: "工具" }
+    }
+  },
+  {
+    id: "a17", lv: 1, lvName: "低", topic: "经济·生活",
+    title: "The Economics of Bubble Tea",
+    titleZh: "一杯奶茶的经济学",
+    paras: [
+      "A cup of bubble tea costs around fifteen yuan in China. It seems like a small thing, but every cup carries a hidden story of rent, labor and competition. A simple drink can teach big lessons about business.",
+      "The largest cost is usually the shop itself. Rent on a busy shopping street can take a third of everything the shop earns. The second largest cost is labor: the young people who prepare your drink, keep the shop clean and smile through the evening rush.",
+      "The drink itself is surprisingly cheap. Tea, milk, sugar and the little pearls together may cost two or three yuan. This is why shops always want you to add cake or fries to your order — the food carries a much higher profit than the tea.",
+      "Price is also a signal. When a new shop opens next to an old one, both sides often cut prices for a while. Each accepts a smaller profit to win customers and keep them. A few months later, one shop may close, and the survivor slowly raises prices again.",
+      "So the next time you hold a warm cup, think about what stands behind it: a landlord, a team of workers, and a quiet battle for the same street corner. Economics is not only about banks and nations; it lives inside every small choice we make."
+    ],
+    gloss: {
+      "rent":         { pos: "n./v.", def: "租金；租用" },
+      "labor":        { pos: "n.",    def: "劳动力；人工" },
+      "competition":  { pos: "n.",    def: "竞争" },
+      "prepare":      { pos: "v.",    def: "准备；调制" },
+      "sugar":        { pos: "n.",    def: "糖" },
+      "pearl":        { pos: "n.",    def: "珍珠" },
+      "profit":       { pos: "n.",    def: "利润；收益" },
+      "signal":       { pos: "n.",    def: "信号；标志" },
+      "customer":     { pos: "n.",    def: "顾客" },
+      "survivor":     { pos: "n.",    def: "幸存者；存活下来的" },
+      "landlord":     { pos: "n.",    def: "房东；地主" },
+      "battle":       { pos: "n.",    def: "战斗；较量" }
+    }
+  },
+  {
+    id: "a18", lv: 1, lvName: "低", topic: "教育·成长",
+    title: "My First Internship",
+    titleZh: "我的第一次实习",
+    paras: [
+      "On my first morning as an intern, I arrived thirty minutes early, sat down in the empty office and waited for someone to notice me. Nobody did. I held my cup of coffee until it went cold, more nervous than any exam had ever made me.",
+      "School had taught me to answer questions; work asked me to find them. In the first week I kept asking my manager, 'What should I do next?' She finally smiled and said, 'Look around, find a problem, and fix it.' That single sentence changed my whole internship.",
+      "I started with small things: reorganizing old files, checking numbers in reports, writing short summaries. Slowly, people began to trust me with bigger tasks. Trust, I discovered, is not given at the door; it is built task by task.",
+      "I also made mistakes. Once I sent an email to the wrong client and felt the floor disappear under my feet. My manager did not shout. She helped me write a clear apology, and the client replied with unexpected kindness. Mistakes are lessons, not endings.",
+      "Three months later I left with two things: a recommendation letter and a quieter kind of confidence. An internship does not really teach you a job. It teaches you the shape of adult life — and that is the one lesson no classroom can sell."
+    ],
+    gloss: {
+      "intern":            { pos: "n.",   def: "实习生" },
+      "nervous":           { pos: "adj.", def: "紧张的；不安的" },
+      "manager":           { pos: "n.",   def: "经理；管理者" },
+      "internship":        { pos: "n.",   def: "实习期；实习" },
+      "reorganize":        { pos: "v.",   def: "重新整理；改组" },
+      "trust":             { pos: "n./v.", def: "信任" },
+      "client":            { pos: "n.",   def: "客户；委托人" },
+      "apology":           { pos: "n.",   def: "道歉" },
+      "kindness":          { pos: "n.",   def: "善意；亲切" },
+      "recommendation":    { pos: "n.",   def: "推荐；推荐信" },
+      "confidence":        { pos: "n.",   def: "信心；自信" },
+      "classroom":         { pos: "n.",   def: "教室；课堂" }
+    }
+  },
+  {
+    id: "a19", lv: 2, lvName: "中", topic: "科技·经济",
+    title: "AI and the Job Market",
+    titleZh: "人工智能与就业市场",
+    paras: [
+      "Every industrial revolution has destroyed some jobs and created others, and each time society has survived the storm. The question raised by artificial intelligence is not whether work will change — it will — but how fast the change arrives, and who is asked to pay for it.",
+      "The tasks most at risk share one quality: they can be written down as a repeatable process. Data entry, basic translation, first drafts of routine documents, simple customer questions — these are patterns a machine can learn. What technology replaces is not the job title but the pattern inside it.",
+      "On the other side of the ledger, three kinds of work are growing. First, judgment: managing people, negotiating contracts, deciding what is worth doing at all. Second, care: nurses, teachers, therapists — work whose value lies in human presence. Third, hands: electricians, plumbers and cooks, whose fingers must meet the physical world.",
+      "Education is being pulled into the argument. Universities add courses on using intelligent tools, but the deeper skill is older than any software: the ability to ask a good question. Machines answer; humans must decide what matters. A graduate who can frame a problem clearly will always have work directing machines that cannot.",
+      "The honest economists admit that transitions are personal, not statistical. Average growth hides the fifty-year-old warehouse clerk retraining at night. The smooth line on the chart is drawn across real, individual losses. Societies that manage the transition well — with retraining, insurance and respect — will keep both their prosperity and their peace."
+    ],
+    gloss: {
+      "industrial":    { pos: "adj.",  def: "工业的；产业的" },
+      "artificial":    { pos: "adj.",  def: "人工的；人造的" },
+      "repeatable":    { pos: "adj.",  def: "可重复的" },
+      "translation":   { pos: "n.",    def: "翻译" },
+      "ledger":        { pos: "n.",    def: "账簿；（收支）记录" },
+      "judgment":      { pos: "n.",    def: "判断；判断力" },
+      "presence":      { pos: "n.",    def: "在场；存在感" },
+      "negotiate":     { pos: "v.",    def: "谈判；协商" },
+      "frame":         { pos: "v.",    def: "构想；表述（问题）" },
+      "statistical":   { pos: "adj.",  def: "统计的" },
+      "retrain":       { pos: "v.",    def: "再培训；重新学习技能" },
+      "prosperity":    { pos: "n.",    def: "繁荣；昌盛" }
+    }
+  },
+  {
+    id: "a20", lv: 2, lvName: "中", topic: "财经·科技",
+    title: "The Electric Car Story",
+    titleZh: "电动车的故事",
+    paras: [
+      "Twenty years ago, an electric car was a golf cart with ambition: slow, heavy and unable to travel far. Today electric vehicles are the fastest-growing part of the global car market, and China stands at the center of the story — building them, buying them, and driving their price down.",
+      "The revolution rests on a quiet industrial miracle: the battery. Since 2010 the cost of a lithium battery pack has fallen by roughly ninety percent, while its energy density has steadily risen. The moment the total cost of ownership dropped below that of a petrol car, the market stopped needing speeches and started needing charging stations.",
+      "China's advantage was never a single invention but a chain of them. From lithium refining to motor winding, the supply chain grew complete and fast. Fierce domestic competition — dozens of brands fighting for the same buyer — drove prices lower than anywhere else. The fight has been brutal for the weaker carmakers and wonderful for the customers.",
+      "Serious problems remain. Old apartment blocks were never designed for chargers. Electricity grids feel the strain when a million cars plug in during a hot evening peak. Winter still shortens the range, and used batteries must find a clean grave. None of these walls is high enough to stop the trend, but each will take years of patient engineering.",
+      "The story is now larger than private cars. Electric buses already glide through hundreds of cities, delivery trucks are switching, and even ships are experimenting with battery power. Transport — a fifth of the world's oil demand — is being rewired piece by piece, and the curves that oilmen trusted for decades are quietly bending."
+    ],
+    gloss: {
+      "vehicle":       { pos: "n.",    def: "车辆；交通工具" },
+      "battery":       { pos: "n.",    def: "电池" },
+      "lithium":       { pos: "n.",    def: "锂" },
+      "density":       { pos: "n.",    def: "密度" },
+      "ownership":     { pos: "n.",    def: "所有权；拥有" },
+      "petrol":        { pos: "n.",    def: "汽油" },
+      "supply":        { pos: "n./v.", def: "供应；供给" },
+      "competition":   { pos: "n.",    def: "竞争" },
+      "charger":       { pos: "n.",    def: "充电器" },
+      "grid":          { pos: "n.",    def: "电网；格子" },
+      "strain":        { pos: "n.",    def: "压力；负荷" },
+      "transport":     { pos: "n.",    def: "交通运输" }
+    }
+  },
+  {
+    id: "a21", lv: 2, lvName: "中", topic: "旅游·经济",
+    title: "Why Small Cities Are Booming",
+    titleZh: "小城旅游为何爆火",
+    paras: [
+      "This summer, the crowds did not head for the famous capitals. They went to Zibo for its barbecue, to Tianshui for its spicy soup, to quiet mountain towns nobody's guidebook mentioned. Small cities across China became suddenly, explosively famous — one viral video at a time.",
+      "The pattern is easy to describe and hard to copy. A single moment — a street snack, a kind hotel owner, a beautiful view — spreads across social media. Then the local government has about two weeks to turn fame into a welcome: organizing bus routes, opening parking lots, controlling prices. Cities that move fast are rewarded with a season of crowds; cities that hesitate watch the wave pass them by.",
+      "Why do travelers choose these places? The honest answer is value. A young graduate with a modest budget finds that a high-speed train delivers adventure for the price of a movie ticket, that a clean hotel room costs a third of its Shanghai equivalent, and that reputation in a small city is still built on honest prices rather than famous scenery.",
+      "The economics reach further than hotels. Tourism income spreads through a small city the way rain spreads through dry soil: family restaurants, taxi drivers, fruit stalls, grandmothers renting spare rooms. One good season can change the arithmetic of a town's entire year, and local officials have noticed.",
+      "A gentle warning follows the applause. Fame is loud but short, and a city that builds only for the trend will inherit empty streets. The places that keep visitors invest quietly in museums, walking paths, clean toilets and patient kindness — because in the end, kindness itself is infrastructure."
+    ],
+    gloss: {
+      "barbecue":       { pos: "n.",    def: "烧烤；烤肉" },
+      "viral":          { pos: "adj.",  def: "病毒式传播的；爆红的" },
+      "spread":         { pos: "v.",    def: "传播；蔓延" },
+      "reputation":     { pos: "n.",    def: "名声；声誉" },
+      "budget":         { pos: "n.",    def: "预算" },
+      "equivalent":     { pos: "n./adj.", def: "等价物；相当的" },
+      "scenery":        { pos: "n.",    def: "风景；景色" },
+      "income":         { pos: "n.",    def: "收入；收益" },
+      "invest":         { pos: "v.",    def: "投资" },
+      "kindness":       { pos: "n.",    def: "善意；亲切" },
+      "infrastructure": { pos: "n.",    def: "基础设施" },
+      "graduate":       { pos: "n./v.", def: "毕业生；毕业" }
+    }
+  },
+  {
+    id: "a22", lv: 2, lvName: "中", topic: "社会·经济",
+    title: "The Silver Economy",
+    titleZh: "银发经济",
+    paras: [
+      "China is growing old at a speed no large nation has ever experienced. Within a generation, one in three citizens will be over sixty. Newspapers describe this as a burden — pension bills, shrinking workforces — but inside the same numbers hides a quieter story: the rise of the silver economy.",
+      "Older adults hold much of the nation's household savings, and they spend it differently. Their money flows toward health, toward travel in comfortable tour groups, toward education for their grandchildren, and toward small comforts that make daily life easier. They are careful with money, but they are not without it.",
+      "Products are learning to adapt. Phones with larger text and clearer speakers, chairs that help their owners stand up, tour schedules with slower rhythms and longer rests — design that respects dignity sells better than design that shouts about age. The best companies discovered that nobody, at any age, wants to feel old.",
+      "The deepest gap is in services. The country needs millions of caregivers, nurses trained in geriatrics, and workers who can manage the careful renovation of an aging apartment. These are jobs that can be neither exported to another country nor handed to a machine, which makes them rare anchors of stable employment.",
+      "Finally, old age is not one market but several. The fit sixty-five-year-old planning a hiking holiday and the frail eighty-five-year-old needing help at breakfast want entirely different products. Companies that treat seniors as one grey block will fail; those that meet them as individuals — patients, travelers, students, grandparents — will find the largest new market of the century."
+    ],
+    gloss: {
+      "silver":       { pos: "n./adj.", def: "银色（的）；银发（的）" },
+      "household":    { pos: "n.",    def: "家庭；住户" },
+      "savings":      { pos: "n.",    def: "储蓄；存款" },
+      "dignity":      { pos: "n.",    def: "尊严" },
+      "adapt":        { pos: "v.",    def: "适应；调整" },
+      "caregiver":    { pos: "n.",    def: "照护者；护理人员" },
+      "geriatrics":   { pos: "n.",    def: "老年医学" },
+      "renovation":   { pos: "n.",    def: "翻新；改造" },
+      "frail":        { pos: "adj.",  def: "虚弱的；脆弱的" },
+      "senior":       { pos: "n.",    def: "老年人；年长者" }
+    }
+  },
+  {
+    id: "a23", lv: 2, lvName: "中", topic: "健康·生活",
+    title: "The Science of Sleep",
+    titleZh: "睡眠的科学",
+    paras: [
+      "We spend a third of our lives unconscious, and for most of modern history we treated those hours as lost time — a gap between one working day and the next. Science has spent the last thirty years apologizing for that arrogance. Sleep, it turns out, is not the pause between the show; it is part of the show.",
+      "At night the brain runs its maintenance crew. It replays the events of the day, deciding which memories to keep and where to store them — a process researchers call consolidation. Meanwhile the body releases growth hormone, and a drainage system flushes waste products out of the brain's tissues. None of this happens while you scroll your phone in bed at two in the morning.",
+      "The modern world attacks sleep from three directions. Blue light from screens delays melatonin, the hormone that announces darkness. Caffeine, with a half-life of five or six hours, quietly patrols the bloodstream long after the last coffee. And alcohol, the most famous false friend, sedates the mind but destroys the deep stages of sleep that repair it.",
+      "How much is enough? For most adults the honest range is seven to nine hours. People who claim to thrive on five are usually people who have forgotten what sharp feels like. Chronic sleep debt is now linked to weight gain, weakened immunity, low mood and poor memory — an expensive loan taken against the body.",
+      "The remedy is as boring as it is reliable: rise at the same time every day, keep the bedroom dark and cool, walk into morning light, and finish the coffee before noon. Sleep is not the price you pay for success. It is the currency you pay with."
+    ],
+    gloss: {
+      "consolidation": { pos: "n.",   def: "巩固；（记忆）固化" },
+      "hormone":       { pos: "n.",   def: "激素；荷尔蒙" },
+      "melatonin":     { pos: "n.",   def: "褪黑素" },
+      "caffeine":      { pos: "n.",   def: "咖啡因" },
+      "alcohol":       { pos: "n.",   def: "酒精" },
+      "sedate":        { pos: "v.",   def: "使镇静；催眠" },
+      "immunity":      { pos: "n.",   def: "免疫力" },
+      "debt":          { pos: "n.",   def: "债务；欠账" },
+      "remedy":        { pos: "n.",   def: "疗法；解决办法" },
+      "currency":      { pos: "n.",   def: "货币；通货" }
+    }
+  },
+  {
+    id: "a24", lv: 2, lvName: "中", topic: "环境·经济",
+    title: "Sorting Trash, Saving Cities",
+    titleZh: "垃圾分类与循环经济",
+    paras: [
+      "A city of ten million people wakes up every morning and produces a small mountain of waste — thousands of trucks carrying yesterday's leftovers, packaging and broken things. Where that mountain goes next is a decision as political as any budget, and far more permanent.",
+      "The traditional answer was the landfill: bury it and forget it. But buried organic matter rots slowly and releases methane, a greenhouse gas far more powerful than carbon dioxide over the coming decades. Landfills also consume land, poison groundwater and smell across entire districts. The cheap answer turns out to be expensive.",
+      "Incineration plants burn waste and return some energy, but they demand fuel that burns well. Kitchen waste, heavy with water, lowers the calorific value of the mixture, which is why sorting at the source matters so much. A city that separates wet waste from dry waste is a city whose power plant runs efficiently.",
+      "The economics of recycling are unforgiving. A used bottle is only worth something if it is clean and separated; a load of contaminated recyclables ends up in the landfill anyway, having paid for a hopeful truck ride. The dream of the circular economy — where the waste of one factory becomes the raw material of another — begins at the kitchen sink.",
+      "And there lies the weakest and most important link: human habit. Sorting rubbish at home takes thirty seconds of attention, yet it decides the fate of everything downstream. Behavior, it turns out, is infrastructure — and unlike concrete, it must be rebuilt by every generation."
+    ],
+    gloss: {
+      "waste":         { pos: "n.",   def: "废物；垃圾" },
+      "landfill":      { pos: "n.",   def: "垃圾填埋场" },
+      "methane":       { pos: "n.",   def: "甲烷；沼气" },
+      "incineration":  { pos: "n.",   def: "焚烧" },
+      "calorific":     { pos: "adj.", def: "热量的；发热的" },
+      "recyclable":    { pos: "n./adj.", def: "可回收物；可回收的" },
+      "contaminate":   { pos: "v.",   def: "污染；弄脏" },
+      "circular":      { pos: "adj.", def: "循环的；圆形的" },
+      "behavior":      { pos: "n.",   def: "行为" },
+      "infrastructure":{ pos: "n.",   def: "基础设施" }
+    }
+  },
+  {
+    id: "a25", lv: 3, lvName: "高", topic: "财经·政治",
+    title: "Rewiring Global Supply Chains",
+    titleZh: "全球供应链的重构",
+    paras: [
+      "For thirty years, global manufacturing worshipped a single god: efficiency. Every factory, warehouse and shipping lane was optimized to squeeze out slack. Then came the pandemic, the chip shortage and the age of sanctions, and boardrooms around the world learned a new vocabulary — resilience, redundancy, de-risking.",
+      "What followed is often mislabeled decoupling, but the more accurate word is duplication. Companies did not leave China; they built a second source beside it. Vietnam, Mexico, India and Malaysia filled with 'China plus one' factories. Inventories that had been trimmed to just-in-time discipline were quietly fattened into just-in-case cushions. The same goods now travel two roads instead of one.",
+      "This insurance is not free. Redundant capacity means duplicated machines, underused plants and higher prices, and the bill drifts quietly into the shopping basket. Studies suggest the reorganization will cost the global economy real percentage points of output over the decade — a peace-time tax paid in advance for a conflict nobody wants.",
+      "Here lies the paradox that politicians prefer not to explain: the countries 'replacing' Chinese factories often import Chinese machinery, Chinese components and Chinese engineers to build them. Chinese firms themselves own a growing share of the new plants in Southeast Asia. Supply chains are not leaving China; they are layering themselves around it, like the rings of a tree.",
+      "The probable endgame is a world of three great regional blocks — North America, Europe and Asia — each trading intensely inside itself and cautiously across borders. Efficiency was always a dividend of peace. As the dividend is re-priced, the era of hyper-cheap everything is being renegotiated, one supplier at a time."
+    ],
+    gloss: {
+      "resilience":   { pos: "n.",   def: "韧性；抗冲击能力" },
+      "redundancy":   { pos: "n.",   def: "冗余；备份" },
+      "decoupling":   { pos: "n.",   def: "脱钩" },
+      "duplication":  { pos: "n.",   def: "复制；重复建设" },
+      "inventory":    { pos: "n.",   def: "库存；存货" },
+      "paradox":      { pos: "n.",   def: "悖论；矛盾" },
+      "component":    { pos: "n.",   def: "零部件；组成部分" },
+      "layer":        { pos: "v.",   def: "分层叠加" },
+      "regional":     { pos: "adj.", def: "地区的；区域的" },
+      "dividend":     { pos: "n.",   def: "红利；股息" }
+    }
+  },
+  {
+    id: "a26", lv: 3, lvName: "高", topic: "政治·环境",
+    title: "Climate Finance and the Divide",
+    titleZh: "气候融资的南北之争",
+    paras: [
+      "The arithmetic of climate change is brutal in both directions. Developing nations need trillions of dollars each year to build clean energy systems and adapt to storms that are already arriving. What was promised in aid and climate finance amounts to hundreds of billions, and what was actually delivered is less again. Between the promise and the payment stretches a valley of distrust.",
+      "History stands in the middle of that valley. Most of the carbon already warming the atmosphere was placed there by today's rich countries during their industrial rise. The phrase 'common but differentiated responsibilities' encodes this argument, and every climate conference re-fights it: all nations are responsible, but not equally, and not in the same decades.",
+      "The mechanisms under negotiation multiply: a loss-and-damage fund for countries struck by disasters; carbon border taxes that charge imports for the pollution they carry, which developing exporters denounce as green protectionism; reform of the development banks so that a loan to a solar farm does not bankrupt a treasury. Each mechanism is a battlefield disguised as paperwork.",
+      "Public money alone cannot fill the gap, so the argument has moved to private capital. Investors like solar farms; they dislike currency risk, where a local crisis can erase a decade of returns. Guarantees that absorb that risk are cheap for governments to offer and slow for bureaucracies to approve. Every year of delay is measured in unbuilt megawatts.",
+      "And yet the deepest change came not from diplomacy but from engineers. Solar power and battery storage are now the cheapest new electricity in most of the world, whatever a conference decides. The fight is shifting from whether the transition happens to who will own the industries that carry it — a question of power, in both senses of the word."
+    ],
+    gloss: {
+      "adapt":           { pos: "v.",   def: "适应；改编" },
+      "differentiate":   { pos: "v.",   def: "区分；区别对待" },
+      "negotiation":     { pos: "n.",   def: "谈判；协商" },
+      "fund":            { pos: "n.",   def: "基金；资金" },
+      "protectionism":   { pos: "n.",   def: "保护主义" },
+      "bureaucracy":     { pos: "n.",   def: "官僚机构；官僚作风" },
+      "guarantee":       { pos: "n./v.", def: "担保；保证" },
+      "capital":         { pos: "n.",   def: "资本；资金" },
+      "diplomacy":       { pos: "n.",   def: "外交" },
+      "transition":      { pos: "n.",   def: "转型；过渡" }
+    }
+  },
+  {
+    id: "a27", lv: 3, lvName: "高", topic: "财经·科技",
+    title: "When Money Turns Digital",
+    titleZh: "当货币走向数字",
+    paras: [
+      "Cash is becoming a minority habit. In China's cities, a grandmother selling vegetables accepts payment with a QR code; in Sweden, churches take digital donations. Two distinct futures are being built on this foundation: private digital money, run by companies, and public digital money, issued by central banks. Each carries a different theory of trust.",
+      "The private revolution already happened in China a decade ago. Mobile wallets leapfrogged the credit card entirely: a farmer who never owned plastic now scans and pays in a second. The lesson travels poorly, though, because interoperability — wallets, banks and merchants speaking one language — required a level of coordination few countries could reproduce.",
+      "The newest private challenger is the stablecoin, a digital token that keeps a fixed peg to a national currency and is backed by reserves. It has found quiet work in cross-border settlement, where it moves money across time zones in minutes instead of days. Regulators, however, keep asking the impolite question: who audits the reserves, and what happens on the day everyone wants their dollars at once?",
+      "The public answer is the CBDC — central bank digital currency. Its enthusiasts promise programmable money: relief payments that cannot be spent on anything but food, subsidies that expire if unused. Its critics hear the same sentence and warn about surveillance, and about interest rates applied directly, silently, to every wallet. Most designs now pass through banks in two tiers and try to work offline, precisely to soften those fears.",
+      "However the argument ends, the principle underneath is old. Money is a technology of trust, and every era re-mints that trust in its own medium: shells, silver, paper, plastic cards, and now entries in a ledger that no single company owns. The metal disappears; the faith must not."
+    ],
+    gloss: {
+      "digital":            { pos: "adj.", def: "数字的" },
+      "wallet":             { pos: "n.",   def: "钱包" },
+      "interoperability":   { pos: "n.",   def: "互操作性；互通性" },
+      "stablecoin":         { pos: "n.",   def: "稳定币" },
+      "peg":                { pos: "v./n.", def: "锚定；固定汇率" },
+      "settlement":         { pos: "n.",   def: "结算；清算" },
+      "regulator":          { pos: "n.",   def: "监管机构" },
+      "audit":              { pos: "v./n.", def: "审计" },
+      "programmable":       { pos: "adj.", def: "可编程的" },
+      "surveillance":       { pos: "n.",   def: "监控；监视" },
+      "ledger":             { pos: "n.",   def: "账本；分类账" }
+    }
+  },
+  {
+    id: "a28", lv: 3, lvName: "高", topic: "科技·学术",
+    title: "The Replication Crisis",
+    titleZh: "科学界的可重复性危机",
+    paras: [
+      "Around 2011, psychology began interrogating its own successes. Famous findings — ego depletion, power poses, the facial feedback of a pen held in the teeth — were tested again by careful strangers, and many quietly collapsed. The episode earned a name that has haunted science ever since: the replication crisis.",
+      "The causes, once measured, were uncomfortably ordinary. Studies ran on tiny samples of twenty college students. Analysts enjoyed too much freedom, trying one specification after another until significance appeared — a practice researchers call p-hacking. Journals preferred positive results, so failures vanished into file drawers. Together these habits manufactured a literature that looked far more certain than it was.",
+      "The medicine has been structural. Preregistration forces scientists to declare their method before seeing the data. Huge collaborations repeat an experiment across dozens of laboratories instead of one. Registered reports go further: the journal accepts a paper based on its question and design, before the results exist — removing the incentive to decorate them.",
+      "The infection spread well beyond psychology. In medicine, large benchmark trials have cut the effect of celebrated treatments by half. In economics, major results shrink when tested with stricter data. Even machine learning has learned the disease: benchmarks saturate, models memorize, and a leaderboard that once predicted progress now measures cleverness at guessing the test.",
+      "What survives the crisis is, ironically, a better advertisement for science than any single discovery. Science was never a museum of fixed facts; it is an argument that corrects itself in public, slowly and with embarrassment. The crisis is uncomfortable evidence that the correction still works — and a reminder to hold every beautiful finding with an open hand."
+    ],
+    gloss: {
+      "replication":       { pos: "n.",   def: "重复；复现" },
+      "depletion":         { pos: "n.",   def: "耗竭；损耗" },
+      "collapse":          { pos: "v./n.", def: "崩溃；坍塌" },
+      "sample":            { pos: "n.",   def: "样本" },
+      "significance":      { pos: "n.",   def: "显著性；意义" },
+      "specification":     { pos: "n.",   def: "规格；分析设定" },
+      "preregistration":   { pos: "n.",   def: "预注册" },
+      "collaboration":     { pos: "n.",   def: "合作；协作" },
+      "benchmark":         { pos: "n.",   def: "基准；标杆" },
+      "saturate":          { pos: "v.",   def: "使饱和" },
+      "correction":        { pos: "n.",   def: "修正；纠正" }
+    }
+  },
+  {
+    id: "a29", lv: 3, lvName: "高", topic: "社会·政治",
+    title: "Cities in a Competition for People",
+    titleZh: "城市的人口争夺战",
+    paras: [
+      "For most of history, cities grew because the jobs were there, and people followed the jobs. Somewhere in the last decade the causality quietly reversed: jobs now follow people, and talented graduates have become the resource every city imports tariff-free. The competition for them has become explicit, expensive and occasionally absurd.",
+      "First came the amenities arms race — coffee culture, cycling lanes, late trains, safety, kindergartens, opera houses — because the mobile young vote with their feet. Then came cash: second-tier Chinese cities offer fresh graduates housing deposits and hukou registration; Japanese towns pay families actual money to leave Tokyo; European capitals duel over tech workers with tax breaks and visa fast lanes.",
+      "The subsidies buy arrivals but rarely buy staying. What retains people is depth: a cluster of industries that gives both halves of a couple a career, and housing that a young salary can actually touch. A city with one dominant employer offers a job; a city with twelve offers a life. The difference shows up five years later, in the census.",
+      "Between the winners, a quieter geography is forming. Superstar cities ration air through rent; shrinking towns in Italy and Japan sell houses for a euro and still struggle to find takers. In the vast middle tier, mayors have discovered that their last competitive weapon is quality of life: shorter commutes, greener streets, schools where teachers stay.",
+      "The coming decade will make the sorting harsher. Remote work loosens the grip of any single city, but it also lets talent concentrate where living is sweetest. Cities used to compete for ports, factories and headquarters. Now they compete for mornings worth waking up in — and that is a competition no subsidy can win alone."
+    ],
+    gloss: {
+      "causality":   { pos: "n.",   def: "因果关系" },
+      "graduate":    { pos: "n./v.", def: "毕业生；毕业" },
+      "amenity":     { pos: "n.",   def: "便利设施；舒适环境" },
+      "subsidy":     { pos: "n.",   def: "补贴；津贴" },
+      "hukou":       { pos: "n.",   def: "户口" },
+      "cluster":     { pos: "n./v.", def: "集群；聚集" },
+      "salary":      { pos: "n.",   def: "薪水" },
+      "census":      { pos: "n.",   def: "人口普查" },
+      "ration":      { pos: "v.",   def: "定量供应；配给" },
+      "commute":     { pos: "n./v.", def: "通勤" }
+    }
+  },
+  {
+    id: "a30", lv: 3, lvName: "高", topic: "经济·科技",
+    title: "Feeding Ten Billion",
+    titleZh: "养活一百亿人",
+    paras: [
+      "Sometime near the middle of this century, the human population will peak at around ten billion, and every one of them will expect dinner. The arithmetic that follows is uncomfortable: more mouths, richer diets that demand meat, and an agriculture that already occupies half of Earth's habitable land. The green revolution's easy gains have mostly been spent.",
+      "The productivity frontier now runs on information. Precision agriculture reads fields satellite by satellite and meter by meter, telling a tractor to fertilize here and skip there. Drones scout for disease before a farmer could see it. Gene editing promises drought-tolerant wheat and salt-tolerant rice, while researchers chase the ancient dream of coaxing cereals to fix their own nitrogen, as beans do.",
+      "The cheapest field ever discovered, however, is waste. Roughly a third of all food is never eaten — rotting in trucks, markets, refrigerators and weddings. Cold chains, better packaging and honest markets for ugly vegetables recover calories no laboratory could invent. Cutting waste in half would feed a small continent without clearing a single forest.",
+      "The protein question resists optimism. Alternative meats grow slowly in Western supermarkets, insect protein quietly feeds aquaculture and poultry, and cultured meat remains stuck above price parity with the animal it imitates. Biology, it turns out, does not scale as gracefully as software; a cow is still the cheapest cow ever built.",
+      "Above everything sits the wild card of climate — heat that shrinks harvests, water that arrives all at once or not at all. That is why food security has returned to the vocabulary of statecraft: nations rebuild grain reserves, watch export bans nervously, and treat a full warehouse as a strategic weapon. Farming is becoming an information industry whose printer is the weather — and the weather is being renegotiated."
+    ],
+    gloss: {
+      "agriculture":  { pos: "n.",   def: "农业" },
+      "habitable":    { pos: "adj.", def: "宜居的；可居住的" },
+      "precision":    { pos: "n.",   def: "精准；精确" },
+      "fertilize":    { pos: "v.",   def: "施肥" },
+      "drone":        { pos: "n.",   def: "无人机" },
+      "nitrogen":     { pos: "n.",   def: "氮" },
+      "packaging":    { pos: "n.",   def: "包装" },
+      "aquaculture":  { pos: "n.",   def: "水产养殖" },
+      "parity":       { pos: "n.",   def: "平价；等同" },
+      "statecraft":   { pos: "n.",   def: "治国之道" },
+      "reserve":      { pos: "n.",   def: "储备；储备量" }
+    }
   }
 ];
 

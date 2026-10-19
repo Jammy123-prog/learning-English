@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* ============================================================
-   EverWord API & 静态服务器 v1.2.0（零依赖）
+   EverWord API & 静态服务器 v1.3.0（零依赖）
    运行：node server/server.js   （需 Node.js ≥ 22）
    能力：
    - 静态托管前端（http://localhost:8787）
@@ -8,8 +8,11 @@
    - 云同步：GET/PUT /api/state（复习卡片 / 统计 / 每日进度 / 设置，最后写入胜出）
    - 词库目录：GET /api/words?level=CET-4|CET-6|TEM-8|IELTS（SQLite 种子库）
               GET /api/words?q=xxx&limit=50（全库模糊检索：精确/前缀/包含/子序列/编辑距离）
-   - 新闻速览：GET /api/news?topic=&limit=&refresh=1（主流媒体 RSS 元数据，仅标题/链接/摘要，
-              不复制正文；懒刷新 30 分钟一次，CGTN 等源直连可达）
+   - 新闻速览：GET /api/news?topic=&limit=&refresh=1（懒刷新 30 分钟）
+              GET /api/news/item?id=N（单条精读：RSS 全文 / China Daily 页面提取）
+   - 新闻源：CGTN 8 版块 RSS（含 content:encoded 全文）+ China Daily 7 频道（运行时页面提取）
+   版权口径：仓库只携带工具与元数据快照；正文仅缓存于本机 data/（gitignore）供个人学习，
+             前端始终展示来源署名与原文链接（跳转原文阅读）。
    数据库：默认内置 SQLite（data/everword.db，WAL）；MySQL 8 建表脚本见 server/mysql-schema.sql
    ============================================================ */
 
@@ -21,7 +24,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 
-const VERSION = "1.2.0";
+const VERSION = "1.3.0";
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "..", "data");
 const DB_FILE = path.join(DATA_DIR, "everword.db");
@@ -76,6 +79,7 @@ CREATE TABLE IF NOT EXISTS news_item (
   topic      TEXT    NOT NULL,
   published  TEXT,
   summary    TEXT,
+  content    TEXT,
   fetched_at TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS sync_log (
@@ -86,6 +90,8 @@ CREATE TABLE IF NOT EXISTS sync_log (
 );
 `);
 
+/* v1.3 迁移：旧库补 content 列（已存在则忽略） */
+try { db.exec("ALTER TABLE news_item ADD COLUMN content TEXT"); } catch (e) {}
 /* 词库种子：从 js/data.js 提取词库灌入 SQLite（仅首次） */
 function seedWords() {
   const row = db.prepare("SELECT COUNT(*) AS c FROM word").get();
@@ -198,10 +204,14 @@ function lev(a, b, cap) {
   return prev[b.length] > cap ? -1 : prev[b.length];
 }
 
-/* ---------------- 新闻源（RSS 元数据：标题/链接/来源/日期/摘要，不含正文） ----------------
-   默认 CGTN 各版块（中国大陆直连可达）；网络条件允许时可追加经济学人/卫报等任意 RSS。 */
+/* ---------------- 新闻源 ----------------
+   ① CGTN 8 版块 RSS：条目自带 content:encoded 全文，直接解析入库（精读可用）
+   ② China Daily 7 频道：RSS 已停服，改为「频道页发现链接 → 文章页提取正文」，
+     仅缓存于本机 data/ 供个人学习，前端始终展示来源与原文链接。
+   网络条件允许时可向 NEWS_FEEDS 追加经济学人/卫报等任意 RSS（含全文则同样可精读）。 */
 const NEWS_FEEDS = [
   { url: "https://www.cgtn.com/subscribe/rss/section/world.xml",    topic: "政治·世界", source: "CGTN" },
+  { url: "https://www.cgtn.com/subscribe/rss/section/politics.xml", topic: "政治·时政", source: "CGTN" },
   { url: "https://www.cgtn.com/subscribe/rss/section/business.xml", topic: "财经·商业", source: "CGTN" },
   { url: "https://www.cgtn.com/subscribe/rss/section/culture.xml",  topic: "文化·艺术", source: "CGTN" },
   { url: "https://www.cgtn.com/subscribe/rss/section/opinion.xml",  topic: "观点·评论", source: "CGTN" },
@@ -209,6 +219,17 @@ const NEWS_FEEDS = [
   { url: "https://www.cgtn.com/subscribe/rss/section/travel.xml",   topic: "旅游·人文", source: "CGTN" },
   { url: "https://www.cgtn.com/subscribe/rss/section/sports.xml",   topic: "体育", source: "CGTN" }
 ];
+const CD_SECTIONS = [
+  { path: "/china",    topic: "中国·中国日报" },
+  { path: "/world",    topic: "世界·中国日报" },
+  { path: "/business", topic: "财经·中国日报" },
+  { path: "/culture",  topic: "文化·中国日报" },
+  { path: "/opinion",  topic: "观点·中国日报" },
+  { path: "/sports",   topic: "体育·中国日报" },
+  { path: "/travel",   topic: "旅游·中国日报" }
+];
+const CD_BASE = "https://www.chinadaily.com.cn";
+const CD_PER_SECTION = 8;       /* 每频道每轮最多抓取的新文章数（对源友好） */
 const NEWS_TTL = 30 * 60 * 1000;
 const NEWS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36";
 let newsStamp = 0, newsBusy = false;
@@ -221,20 +242,61 @@ function xmlClean(s) {
     .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
     .replace(/\s+/g, " ").trim();
 }
+function htmlClean(s) {
+  return String(s || "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ").trim();
+}
+async function httpGet(url, ms) {
+  const r = await fetch(url, { headers: { "User-Agent": NEWS_UA }, signal: AbortSignal.timeout(ms || 8000) });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return await r.text();
+}
+
+/* content:encoded（HTML，通常被实体转义）→ 纯文本段落数组；不足 2 段返回 null */
+function contentToParas(raw) {
+  let html = String(raw || "").replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1");
+  /* CGTN 的 CDATA 内 HTML 是实体转义的（&lt;p&gt;），先解码再提段 */
+  html = html.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
+             .replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&");
+  const ps = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)]
+    .map(m => xmlClean(m[1]))
+    .filter(x => x.length > 40);
+  if (ps.length < 2) return null;
+  return ps.slice(0, 40);
+}
+
+/* China Daily 文章页 → { title, date, paras } */
+function parseCdArticle(html) {
+  const t = html.match(/<title>([\s\S]*?)<\/title>/);
+  if (!t) return null;
+  const title = htmlClean(t[1]).replace(/\s*[-–]\s*[^-–]+[-–]\s*Chinadaily\.com\.cn\s*$/i, "").trim();
+  const ps = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)]
+    .map(m => htmlClean(m[1].replace(/<[^>]+>/g, " ")))
+    .filter(x => x.length > 60);
+  if (!title || ps.length < 3) return null;
+  let published = "";
+  const dm = html.match(/(20\d\d-\d\d-\d\d \d\d:\d\d)/);
+  if (dm) { try { published = new Date(dm[1].replace(" ", "T") + "Z").toISOString(); } catch (e) {} }
+  return { title: title.slice(0, 220), published, paras: ps.slice(0, 40) };
+}
+
 async function refreshNews(force) {
   if (newsBusy) return;
   if (!force && Date.now() - newsStamp < NEWS_TTL) return;
   newsBusy = true;
+  let added = 0, cdAdded = 0;
   try {
-    const results = await Promise.allSettled(NEWS_FEEDS.map(async f => {
-      const r = await fetch(f.url, { headers: { "User-Agent": NEWS_UA }, signal: AbortSignal.timeout(6000) });
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return { f, xml: await r.text() };
-    }));
-    const ins = db.prepare(
-      "INSERT OR IGNORE INTO news_item (link, title, source, topic, published, summary) VALUES (?, ?, ?, ?, ?, ?)"
-    );
-    let n = 0;
+    /* ---- ① CGTN RSS（含全文） ---- */
+    const results = await Promise.allSettled(NEWS_FEEDS.map(async f => ({ f, xml: await httpGet(f.url, 6000) })));
+    const upsert = db.prepare(`
+      INSERT INTO news_item (link, title, source, topic, published, summary, content)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(link) DO UPDATE SET
+        content = COALESCE(excluded.content, news_item.content),
+        summary = COALESCE(NULLIF(news_item.summary, ''), excluded.summary)
+    `);
     db.exec("BEGIN");
     for (const it of results) {
       if (it.status !== "fulfilled") continue;
@@ -248,14 +310,48 @@ async function refreshNews(force) {
         if (!title || !link) continue;
         let pub = "";
         try { const pd = pick("pubDate"); if (pd) pub = new Date(pd).toISOString(); } catch (e) {}
-        if (ins.run(link, title, f.source, f.topic, pub, pick("description").slice(0, 200)).changes > 0) n++;
+        const cem = b.match(/<content:encoded>([\s\S]*?)<\/content:encoded>/i);
+        const paras = cem ? contentToParas(cem[1]) : null;
+        if (upsert.run(link, title, f.source, f.topic, pub, pick("description").slice(0, 200), paras ? JSON.stringify(paras) : null).changes > 0) added++;
       }
     }
     db.exec("COMMIT");
+
+    /* ---- ② China Daily：频道页发现新文章 → 提取正文 ---- */
+    for (const sec of CD_SECTIONS) {
+      try {
+        const html = await httpGet(CD_BASE + sec.path, 6000);
+        /* href 形态可能是 //host/a/...（协议相对）或 /a/...（站内路径）或 https://... */
+        const links = [...new Set(
+          [...html.matchAll(/href="([^"]*\/a\/20\d{4}\/\d{2}\/WS[0-9a-f]+\.html)"/g)].map(m => {
+            const u = m[1];
+            if (/^https?:/i.test(u)) return u;
+            if (u.startsWith("//")) return "https:" + u;
+            return CD_BASE + u;
+          })
+        )].slice(0, CD_PER_SECTION + 4);
+        if (!links.length) continue;
+        const ph = "(" + links.map(() => "?").join(",") + ")";
+        const known = new Set(db.prepare("SELECT link FROM news_item WHERE link IN " + ph).all(...links).map(r => r.link));
+        const fresh = links.filter(u => !known.has(u)).slice(0, CD_PER_SECTION);
+        if (!fresh.length) continue;
+        const arts = await Promise.allSettled(fresh.map(u => httpGet(u, 8000)));
+        db.exec("BEGIN");
+        arts.forEach((a, i) => {
+          if (a.status !== "fulfilled") return;
+          const parsed = parseCdArticle(a.value);
+          if (!parsed) return;
+          if (upsert.run(fresh[i], parsed.title, "China Daily", sec.topic, parsed.published,
+              parsed.paras[0].slice(0, 200), JSON.stringify(parsed.paras)).changes > 0) cdAdded++;
+        });
+        db.exec("COMMIT");
+      } catch (e) { /* 单频道失败不影响其他 */ }
+    }
     newsStamp = Date.now();
-    if (n) console.log("[ev] 新闻刷新：新增 " + n + " 条");
+    if (added || cdAdded) console.log("[ev] 新闻刷新：RSS 新增 " + added + " 条，China Daily 新增 " + cdAdded + " 条");
   } catch (e) {
     console.log("[ev] 新闻刷新失败：" + e.message);
+    try { db.exec("ROLLBACK"); } catch (e2) {}
   } finally {
     newsBusy = false;
   }
@@ -269,7 +365,8 @@ async function handleApi(req, res, url, body) {
   if (p === "/api/health" && req.method === "GET") {
     const users = db.prepare("SELECT COUNT(*) AS c FROM user").get().c;
     const words = db.prepare("SELECT COUNT(*) AS c FROM word").get().c;
-    return json(res, 200, { ok: true, name: "everword-api", version: VERSION, db: "sqlite", users, words });
+    const news = db.prepare("SELECT COUNT(*) AS c FROM news_item").get().c;
+    return json(res, 200, { ok: true, name: "everword-api", version: VERSION, db: "sqlite", users, words, news });
   }
 
   /* ---- 注册 ---- */
@@ -332,7 +429,7 @@ async function handleApi(req, res, url, body) {
     return json(res, 200, { ok: true, count: rows.length, words: rows });
   }
 
-  /* ---- 新闻速览（公开）：主流媒体 RSS 元数据，懒刷新 ---- */
+  /* ---- 新闻速览（公开）：多源懒刷新，c=1 表示可精读 ---- */
   if (p === "/api/news" && req.method === "GET") {
     const topic = url.searchParams.get("topic");
     const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit"), 10) || 50));
@@ -341,11 +438,23 @@ async function handleApi(req, res, url, body) {
     const WHERE = topic ? "WHERE topic = ?" : "";
     const args = topic ? [topic, limit] : [limit];
     const rows = db.prepare(
-      "SELECT title, link, source, topic, published, summary FROM news_item " + WHERE + " ORDER BY published DESC, id DESC LIMIT ?"
+      "SELECT id, title, link, source, topic, published, summary, (content IS NOT NULL) AS c FROM news_item " + WHERE + " ORDER BY published DESC, id DESC LIMIT ?"
     ).all(...args);
     const total = db.prepare("SELECT COUNT(*) AS c FROM news_item").get().c;
+    const readable = db.prepare("SELECT COUNT(*) AS c FROM news_item WHERE content IS NOT NULL").get().c;
     const topics = db.prepare("SELECT DISTINCT topic FROM news_item").all().map(x => x.topic);
-    return json(res, 200, { ok: true, total, count: rows.length, topics, items: rows, refreshedAt: new Date(newsStamp).toISOString() });
+    return json(res, 200, { ok: true, total, readable, count: rows.length, topics, items: rows, refreshedAt: new Date(newsStamp).toISOString() });
+  }
+
+  /* ---- 新闻精读（公开）：单条含正文段落 ---- */
+  if (p === "/api/news/item" && req.method === "GET") {
+    const id = parseInt(url.searchParams.get("id"), 10);
+    if (!id || id < 1) return bad(res, "参数 id 非法");
+    const row = db.prepare("SELECT id, title, link, source, topic, published, summary, content FROM news_item WHERE id = ?").get(id);
+    if (!row) return bad(res, "条目不存在", 404);
+    let paras = null;
+    if (row.content) { try { paras = JSON.parse(row.content); } catch (e) { paras = null; } }
+    return json(res, 200, { ok: true, item: { id: row.id, title: row.title, link: row.link, source: row.source, topic: row.topic, published: row.published, summary: row.summary, paras } });
   }
 
   /* ---- 以下接口需要登录 ---- */

@@ -1,6 +1,6 @@
 /* API 冒烟测试 —— 先启动服务器（node server/server.js），再运行：
    node tools/api-smoke.js [port]
-   覆盖：health / register / login / 错误口令 / state 读写 / words 词库与模糊检索 / news 新闻 / 鉴权失败 */
+   覆盖：health / register / login / 错误口令 / state 读写 / words 词库与模糊检索 / news 新闻与精读 / 鉴权失败 */
 
 const BASE = "http://localhost:" + (process.argv[2] || "8787");
 const NAME = "apismoke_" + Date.now().toString(36);
@@ -20,7 +20,7 @@ async function call(method, path, body, token) {
 (async () => {
   /* 1. health */
   const h = await call("GET", "/api/health");
-  ok(h.status === 200 && h.j.ok && h.j.version === "1.2.0", "health 返回 1.2.0");
+  ok(h.status === 200 && h.j.ok && h.j.version === "1.3.0", "health 返回 1.3.0");
   ok(h.j.words >= 160, "词库种子已入库（" + h.j.words + " 词，含全量目录）");
 
   /* 2. 注册 */
@@ -68,13 +68,29 @@ async function call(method, path, body, token) {
   const wq4 = await call("GET", "/api/words?q=zzzzqqq");
   ok(wq4.status === 200 && wq4.j.count === 0, "无匹配检索返回空集");
 
-  /* 6. 新闻速览 */
+  /* 6. 新闻速览与精读 */
   const news = await call("GET", "/api/news?limit=10");
   ok(news.status === 200 && news.j.ok && Array.isArray(news.j.items), "news 接口返回结构正确");
+  ok(typeof news.j.total === "number" && typeof news.j.readable === "number", "news 返回总量与可精读数（总 " + (news.j.total || 0) + " / 可精读 " + (news.j.readable || 0) + "）");
   if (news.j.items && news.j.items.length) {
     const it = news.j.items[0];
-    ok(!!(it.title && it.link && it.source), "新闻条目含标题/链接/来源（" + news.j.total + " 条已入库）");
-    ok(news.j.items.every(x => !x.summary || x.summary.length <= 200), "新闻摘要均为短片段（不搬运正文）");
+    ok(!!(it.title && it.link && it.source && it.id), "新闻条目含 id/标题/链接/来源");
+    ok(news.j.items.every(x => !x.summary || x.summary.length <= 200), "新闻摘要均为短片段（列表不搬运正文）");
+    ok(news.j.items.every(x => x.c === 0 || x.c === 1), "新闻条目带精读标记 c（0/1）");
+    /* 精读条目接口 */
+    const rd = news.j.items.find(x => x.c === 1);
+    if (rd) {
+      const item = await call("GET", "/api/news/item?id=" + rd.id);
+      ok(item.status === 200 && item.j.ok && Array.isArray(item.j.item.paras) && item.j.item.paras.length >= 2,
+        "精读接口返回正文段落（" + item.j.item.paras.length + " 段，来源 " + item.j.item.source + "）");
+      ok(item.j.item.paras.every(p => typeof p === "string" && p.length > 40), "精读段落均为有效文本");
+    } else {
+      ok(news.j.total >= 0, "当前无精读条目（源全文不可达时不阻塞列表）");
+    }
+    const miss = await call("GET", "/api/news/item?id=99999999");
+    ok(miss.status === 404, "精读接口对不存在条目返回 404");
+    const badq = await call("GET", "/api/news/item?id=abc");
+    ok(badq.status === 400, "精读接口非法 id 返回 400");
   } else {
     ok(news.j.total >= 0, "news 接口可访问（当前源不可达，条目 0，接口不报错）");
   }

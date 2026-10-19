@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>每日单词 · EverWord</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<script>document.documentElement.className += " js";</script>
+</head>
+<body data-page="words">
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="brand-mark">E</span><span class="brand-name">EverWord</span></a>
+  <a href="index.html" data-nav="home">首页</a>
+  <a href="words.html" data-nav="words">单词</a>
+  <a href="reading.html" data-nav="reading">阅读</a>
+  <a href="quiz.html" data-nav="quiz">测验</a>
+  <a href="bank.html" data-nav="bank">题库</a>
+</nav>
+
+<main class="wrap narrow">
+  <section class="page-head rv">
+    <span class="eyebrow">Daily Words · SM-2 调度</span>
+    <h1>今日单词</h1>
+    <div class="w-ctl rv">
+      <label class="ctl-lab">
+        <span class="ctl-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8.5 4.5L12 12 3.5 7.5z"/><path d="M3.5 12.5 12 17l8.5-4.5"/><path d="M3.5 17 12 21.5 20.5 17"/></svg></span>
+        <select id="lv-select" aria-label="选择词库级别">
+          <option value="全部">全部词库</option>
+          <option value="CET-4">四级 CET-4</option>
+          <option value="CET-6">六级 CET-6</option>
+          <option value="TEM-8">专八 TEM-8</option>
+          <option value="IELTS">雅思 IELTS</option>
+        </select>
+      </label>
+      <label class="ctl-lab npd" title="每日引入的新词数量（1-50）">
+        <input id="npd" type="number" min="1" max="50" step="1" inputmode="numeric" aria-label="每日新词数量">
+        <span class="npd-lab">新词 / 日</span>
+      </label>
+      <button class="btn btn-primary btn-sm" id="more-batch" title="立即追加一批新词到今日队列">
+        <span>下一批 +<b id="batch-n">8</b></span>
+        <span class="btn-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span>
+      </button>
+    </div>
+    <div class="w-stats">
+      <span><b id="q-new">0</b>新词</span><i></i>
+      <span><b id="q-rev">0</b>待复习</span><i></i>
+      <span><b id="q-master">0</b>已掌握</span>
+      <span class="w-pool" id="q-pool"></span>
+    </div>
+  </section>
+
+  <div id="session"></div>
+</main>
+
+<footer class="foot">
+  <p class="foot-brand">EverWord</p>
+  <p class="foot-tag">科学记忆 · 沉浸阅读 · 主动回忆</p>
+</footer>
+
+<script src="js/icons.js"></script>
+<script src="js/data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/srs.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/tts.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  const mount = document.getElementById("session");
+
+  /* ---- 控制行：级别 / 每日新词数量 / 下一批 ---- */
+  const lvSel = document.getElementById("lv-select");
+  const npd = document.getElementById("npd");
+  const batchN = document.getElementById("batch-n");
+  lvSel.value = Settings.level;
+  npd.value = Settings.newPerDay;
+  batchN.textContent = Settings.newPerDay;
+
+  lvSel.addEventListener("change", () => {
+    Settings.set("level", lvSel.value);
+    location.reload();
+  });
+  npd.addEventListener("change", () => {
+    Settings.set("newPerDay", npd.value);
+    npd.value = Settings.newPerDay;
+    batchN.textContent = Settings.newPerDay;
+    location.reload();
+  });
+  function pullBatch() {
+    SRS.moreBatch(Settings.newPerDay);
+    location.reload();
+  }
+  document.getElementById("more-batch").addEventListener("click", pullBatch);
+
+  /* ---- 统计（跟随所选级别） ---- */
+  const queue = SRS.queue();
+  const pool = SRS.poolStats(Settings.level);
+  const newN = queue.filter(x => x.isNew).length;
+  document.getElementById("q-new").textContent = newN;
+  document.getElementById("q-rev").textContent = queue.length - newN;
+  document.getElementById("q-master").textContent = pool.learned;
+  document.getElementById("q-pool").textContent = "· " + Settings.level + " 词库 " + pool.total + " 词（未学 " + pool.fresh + "）";
+
+  if (!queue.length) { renderEmpty(); return; }
+
+  let session = queue.map(x => ({ word: x.word, isNew: x.isNew, seen: 0 }));
+  let idx = 0, flipped = false, graded = 0, newDone = 0;
+  const t0 = Date.now();
+
+  function ivlText(p, q) {
+    if (q < 3) return "明天 · 重置";
+    return p.ivl === 1 ? "明天" : p.ivl + " 天";
+  }
+
+  function render() {
+    const it = session[idx];
+    const w = it.word;
+    flipped = false;
+    const grades = [
+      { q: 2, t: "忘记" }, { q: 3, t: "模糊" },
+      { q: 4, t: "良好" }, { q: 5, t: "秒认" }
+    ].map(g => Object.assign(g, { s: SRS.preview(w.w, g.q) }));
+
+    mount.innerHTML = `
+      <div class="w-meta">
+        <span class="chip ${lvClass(w.lv)}">${w.lv}</span>
+        ${it.isNew ? '<span class="chip new">新词</span>' : '<span class="chip rev">复习</span>'}
+        ${it.seen ? '<span class="chip">本轮重测</span>' : ""}
+        <span class="w-count">${idx + 1} / ${session.length}</span>
+      </div>
+      <div class="bar w-progress"><i style="transform:scaleX(${idx / session.length})"></i></div>
+      <div class="flip" id="flip">
+        <div class="flip-inner">
+          <div class="face front">
+            <div class="w-word">${w.w}</div>
+            <div class="w-ipa">${w.ipa || ""}</div>
+            <button class="say" id="say-w">${ICONS.speaker}<span>发音</span></button>
+            <small class="hint">先回想释义，再点击卡片或按 <kbd>空格</kbd> 翻转</small>
+          </div>
+          <div class="face back">
+            <div class="w-def"><span class="w-pos">${w.pos || ""}</span>${w.def}</div>
+            ${w.ex ? `<div class="w-ex"><p>${w.ex}</p>${w.exZh ? `<p class="zh">${w.exZh}</p>` : ""}
+              <button class="say" id="say-e">${ICONS.speaker}<span>播放例句</span></button></div>` : ""}
+          </div>
+        </div>
+      </div>
+      <div class="grades">
+        ${grades.map(g => `
+          <button class="g-btn g${g.q - 1}" data-q="${g.q}" disabled>
+            <b>${g.t}</b><span>${ivlText(g.s, g.q)}</span>
+          </button>`).join("")}
+      </div>`;
+
+    const flipEl = document.getElementById("flip");
+    flipEl.addEventListener("click", () => { if (!flipped) doFlip(); });
+    const sayW = document.getElementById("say-w");
+    if (sayW) sayW.addEventListener("click", e => { e.stopPropagation(); TTS.speak(w.w); });
+    const sayE = document.getElementById("say-e");
+    if (sayE) sayE.addEventListener("click", e => { e.stopPropagation(); TTS.speak(w.ex); });
+    mount.querySelectorAll(".g-btn").forEach(b =>
+      b.addEventListener("click", () => grade(+b.dataset.q)));
+  }
+
+  function doFlip() {
+    flipped = true;
+    const it = session[idx];
+    document.getElementById("flip").classList.add("on");
+    mount.querySelectorAll(".g-btn").forEach(b => { b.disabled = false; });
+    TTS.speak(it.word.w);
+  }
+
+  function grade(q) {
+    if (!flipped) return;
+    const it = session[idx];
+    const w = it.word;
+    SRS.grade(w.w, q);
+    graded++;
+    if (it.isNew && !it.seen) newDone++;
+    if (q < 4 && it.seen < 2) session.push({ word: w, isNew: false, seen: it.seen + 1 });
+    idx++;
+    if (idx >= session.length) finish();
+    else render();
+  }
+
+  function finish() {
+    Prog.addWords(graded);
+    const secs = Math.round((Date.now() - t0) / 1000);
+    const dur = Math.floor(secs / 60) + ":" + pad2(secs % 60);
+    mount.innerHTML = `
+      <div class="bezel anim-in"><div class="core">
+        <span class="eyebrow">Session Complete</span>
+        <h2 class="q-intro-t" style="text-align:left;margin-bottom:0">今日单词完成</h2>
+        <div class="done-stats">
+          <div><b class="num">${graded}</b><small>练习卡片</small></div>
+          <div><b class="num">${newDone}</b><small>其中新词</small></div>
+          <div><b class="num">${dur}</b><small>用时</small></div>
+        </div>
+        <p class="done-note">明日待复习 <b>${SRS.tomorrowDue}</b> 张卡片 —— 间隔重复已按记忆曲线排好。</p>
+        <p class="done-note">意犹未尽？再来一批新词，记忆引擎会照常排程。</p>
+        <div class="done-cta">
+          <button class="btn btn-primary" id="more2">再来一批 +${Settings.newPerDay}<span class="btn-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span></button>
+          <a class="btn btn-ghost" href="reading.html">去读今日文章<span class="btn-ic">${ICONS.arrow}</span></a>
+          <a class="btn btn-ghost" href="index.html">返回首页</a>
+        </div>
+      </div></div>`;
+    document.getElementById("more2").addEventListener("click", pullBatch);
+  }
+
+  function renderEmpty() {
+    mount.innerHTML = `
+      <div class="bezel anim-in"><div class="core">
+        <span class="eyebrow">All Clear</span>
+        <h2 class="q-intro-t" style="text-align:left;margin-bottom:6px">今日队列已完成</h2>
+        <p class="page-sub">${Settings.level === "全部" ? "" : "当前级别「" + Settings.level + "」"}没有到期复习，也没有剩余新词。可以加大每日词量、加推一批，或换个词库继续。</p>
+        <p class="done-note" style="margin-top:14px">明日待复习 <b>${SRS.tomorrowDue}</b> 张卡片。</p>
+        <div class="done-cta">
+          <button class="btn btn-primary" id="more3">下一批 +${Settings.newPerDay}<span class="btn-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg></span></button>
+          <a class="btn btn-ghost" href="reading.html">去读今日文章<span class="btn-ic">${ICONS.arrow}</span></a>
+          <a class="btn btn-ghost" href="bank.html">逛题库</a>
+        </div>
+      </div></div>`;
+    document.getElementById("more3").addEventListener("click", pullBatch);
+  }
+
+  /* 键盘：空格翻卡，1-4 评分（输入框聚焦时让路） */
+  document.addEventListener("keydown", e => {
+    if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+    if (!mount.querySelector("#flip")) return;
+    if (e.code === "Space") { e.preventDefault(); mount.querySelector("#flip").click(); }
+    if (["1", "2", "3", "4"].includes(e.key)) {
+      const b = mount.querySelector('.g-btn[data-q="' + (+e.key + 1) + '"]');
+      if (b && !b.disabled) b.click();
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

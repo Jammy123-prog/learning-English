@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EverWord · 每日英语 — 科学记忆 · 沉浸阅读 · 主动回忆</title>
+<meta name="description" content="EverWord 每日英语——SM-2 间隔重复单词、分级沉浸阅读、每日测验与四六级/雅思题库，用认知科学把英语长在记忆里。">
+<meta name="theme-color" content="#EEF2FF">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/landing.css">
+<script>document.documentElement.className += " js";</script>
+</head>
+<body data-page="home">
+
+<!-- SVG 渐变与公共图形定义 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#818CF8"/>
+      <stop offset="1" stop-color="#4F46E5"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="brand-mark">E</span><span class="brand-name">EverWord</span></a>
+  <a href="index.html" data-nav="home">首页</a>
+  <a href="words.html" data-nav="words">单词</a>
+  <a href="reading.html" data-nav="reading">阅读</a>
+  <a href="quiz.html" data-nav="quiz">测验</a>
+  <a href="bank.html" data-nav="bank">题库</a>
+  <a class="nav-cta" href="words.html">免费开始</a>
+</nav>
+
+<main class="wrap">
+
+  <!-- ================= Hero ================= -->
+  <section class="hero">
+    <span class="deco deco-chip" style="top:196px; left:-6px; --tilt:-4deg; animation-delay:.6s"><i style="background:#F78FB0"></i>serendipity</span>
+    <span class="deco deco-chip" style="bottom:64px; left:36%; --tilt:3deg; animation-delay:1.8s"><i style="background:#4F46E5"></i>resilience</span>
+    <span class="deco deco-chip" style="top:118px; right:-4px; --tilt:-3deg; animation-delay:1.2s"><i style="background:#16A34A"></i>epiphany</span>
+    <span class="deco deco-blob" style="width:120px; height:120px; top:64px; right:5%; background:linear-gradient(150deg,#FFDCEA,#FFCFE4); animation-delay:.3s"></span>
+    <span class="deco deco-blob" style="width:74px; height:74px; bottom:26px; right:42%; background:linear-gradient(150deg,#CFF7DD,#B8F2CE); animation-delay:2.4s"></span>
+
+    <div class="hero-grid">
+      <div>
+        <span class="eyebrow rv">Everyday · Science-Backed English</span>
+        <h1 class="rv">每天 20 分钟，<br>把英语<em class="hl">长</em>在记忆里。</h1>
+        <p class="lead rv">间隔重复 × 分级阅读 × 主动测验——三大认知科学原理，凝成一个值得每天完成的闭环。生词与错题自动回流，第二天准时再见。</p>
+        <div class="hero-cta rv">
+          <a class="btn btn-cta" href="words.html">开始今日学习<span class="ic"><svg viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></a>
+          <a class="btn btn-ghost" href="#courses">先逛逛课程</a>
+          <span class="streak-chip"><svg class="ic icf" viewBox="0 0 24 24"><path d="M12 2.5c.6 4 4.8 5.6 4.8 10.2a4.8 4.8 0 0 1-9.6 0c0-1.7.8-3 1.9-4 .2 1.7 1 2.7 2.3 3.5C10 9 10.7 5.5 12 2.5z"/></svg><b data-streak>0</b>&nbsp;天连续</span>
+        </div>
+      </div>
+
+      <!-- 单词卡演示模型 -->
+      <div class="hero-visual rv">
+        <div class="mock-stack">
+          <div class="mock-back"></div>
+          <div class="mock-card">
+            <div class="mock-head">
+              <span>Daily Words · 每日单词</span>
+              <span class="mock-tag">SM-2 · 复习 ②</span>
+            </div>
+            <div class="mock-word">resilience</div>
+            <div class="mock-ipa">/rɪˈzɪliəns/</div>
+            <div class="mock-def"><span class="pos">n.</span>韧性；快速恢复的能力</div>
+            <div class="mock-ex">Her <b>resilience</b> carried her through the storm of exams.</div>
+            <div class="mock-grades" aria-hidden="true">
+              <div class="mg mg-1"><b>忘记</b><small>明日</small></div>
+              <div class="mg mg-2"><b>困难</b><small>6 天</small></div>
+              <div class="mg mg-3"><b>良好</b><small>16 天</small></div>
+              <div class="mg mg-4"><b>简单</b><small>37 天</small></div>
+            </div>
+            <div class="mock-foot">
+              <span class="mock-dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></span>
+              <span>间隔重复 · Spaced Repetition</span>
+            </div>
+          </div>
+          <span class="float-badge fb-ok"><svg class="ic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>记住啦！</span>
+          <span class="float-badge fb-srs"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>下次 16 天后</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 课程目录预览 ================= -->
+  <section class="sec" id="courses">
+    <div class="sec-head">
+      <span class="eyebrow rv">Course Catalog · 课程目录</span>
+      <h2 class="rv">四门核心课，一个科学闭环</h2>
+      <p class="rv">单词、阅读、测验、题库——四门课共享同一份生词本与错题本：学过、错过、查过的词，都会回来。</p>
+    </div>
+    <div class="course-grid">
+
+      <a class="clay course c-blue rv" href="words.html">
+        <span class="course-no">Course 01</span>
+        <span class="course-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8.5 4.5L12 12 3.5 7.5z"/><path d="M3.5 12.5 12 17l8.5-4.5"/><path d="M3.5 17 12 21.5 20.5 17"/></svg></span>
+        <h3>每日单词</h3>
+        <p class="course-desc">SM-2 记忆引擎自动排程：到期复习优先、新词定量引入，四档评分决定下一次相见的日期。</p>
+        <span class="course-chips">
+          <span class="chip"><i></i>SM-2 算法</span>
+          <span class="chip"><i></i>词量自定 · 可加批</span>
+          <span class="chip"><i></i>发音跟读</span>
+        </span>
+        <span class="course-link">进入课程<span class="ic"><svg viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></span>
+      </a>
+
+      <a class="clay course c-peach rv" href="reading.html">
+        <span class="course-no">Course 02</span>
+        <span class="course-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg></span>
+        <h3>分级阅读</h3>
+        <p class="course-desc">低 / 中 / 高三档难度，悬浮取词即时释义，全文朗读随时可听——励志、旅游、财经多主题轮换。</p>
+        <span class="course-chips">
+          <span class="chip"><i></i>三档难度</span>
+          <span class="chip"><i></i>悬浮释义</span>
+          <span class="chip"><i></i>TTS 朗读</span>
+        </span>
+        <span class="course-link">进入课程<span class="ic"><svg viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></span>
+      </a>
+
+      <a class="clay course c-mint rv" href="quiz.html">
+        <span class="course-no">Course 03</span>
+        <span class="course-ic"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8"/></svg></span>
+        <h3>每日测验</h3>
+        <p class="course-desc">每天 10 题自动出题：当日词汇 + 语境填空 + 语法 + 阅读。错题一键重练，错题词自动回流生词本。</p>
+        <span class="course-chips">
+          <span class="chip"><i></i>10 题 / 天</span>
+          <span class="chip"><i></i>错题重练</span>
+          <span class="chip"><i></i>自动回流</span>
+        </span>
+        <span class="course-link">进入课程<span class="ic"><svg viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></span>
+      </a>
+
+      <a class="clay course c-lilac rv" href="bank.html">
+        <span class="course-no">Course 04</span>
+        <span class="course-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c0 1.7 2.7 3 6 3s6-1.3 6-3v-5"/></svg></span>
+        <h3>真题题库</h3>
+        <p class="course-desc">四级 / 六级 / 专八 / 雅思原创模拟题，逐题自测即时解析，或整卷练习模拟考场节奏。</p>
+        <span class="course-chips">
+          <span class="chip"><i></i>CET-4</span>
+          <span class="chip"><i></i>CET-6</span>
+          <span class="chip"><i></i>TEM-8</span>
+          <span class="chip"><i></i>IELTS</span>
+        </span>
+        <span class="course-link">进入课程<span class="ic"><svg viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></span>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- ================= 进度追踪演示 ================= -->
+  <section class="sec" id="progress">
+    <div class="sec-head">
+      <span class="eyebrow rv">Progress Tracking · 进度追踪</span>
+      <h2 class="rv">你今天的每一步，都被记得</h2>
+      <p class="rv">任务、统计与推荐实时联动——完成一门课，这里立刻更新。</p>
+    </div>
+
+    <div class="prog-grid">
+
+      <!-- 今日任务 + 进度环 -->
+      <div class="clay card rv">
+        <div class="card-head">
+          <span class="eyebrow">Today · 今日任务</span>
+          <span class="date" data-date></span>
+          <div class="ring-wrap" title="今日完成度">
+            <svg class="ring" viewBox="0 0 84 84" role="img" aria-label="今日任务完成度">
+              <circle class="ring-track" cx="42" cy="42" r="35"/>
+              <circle class="ring-val" id="ring-val" cx="42" cy="42" r="35"/>
+            </svg>
+            <div class="ring-txt"><div><b id="ring-pct">0%</b><small>今日</small></div></div>
+          </div>
+        </div>
+        <div class="tasks">
+          <a class="task" id="t-word" href="words.html">
+            <span class="task-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8.5 4.5L12 12 3.5 7.5z"/><path d="M3.5 12.5 12 17l8.5-4.5"/><path d="M3.5 17 12 21.5 20.5 17"/></svg></span>
+            <span class="task-body">
+              <b>每日单词 <span class="t-state" id="s-word">—</span></b>
+              <span class="bar"><i id="p-word"></i></span>
+              <small id="d-word">—</small>
+            </span>
+            <span class="task-arrow"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="task" id="t-read" href="reading.html">
+            <span class="task-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v12a3 3 0 0 0-3-3H2z"/><path d="M22 4h-6a4 4 0 0 0-4 4v12a3 3 0 0 1 3-3h7z"/></svg></span>
+            <span class="task-body">
+              <b>每日文章 <span class="t-state" id="s-read">—</span></b>
+              <span class="bar"><i id="p-read"></i></span>
+              <small id="d-read">—</small>
+            </span>
+            <span class="task-arrow"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span>
+          </a>
+          <a class="task" id="t-quiz" href="quiz.html">
+            <span class="task-ic"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".8"/></svg></span>
+            <span class="task-body">
+              <b>每日测验 <span class="t-state" id="s-quiz">—</span></b>
+              <span class="bar"><i id="p-quiz"></i></span>
+              <small id="d-quiz">10 题 · 约 5 分钟</small>
+            </span>
+            <span class="task-arrow"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span>
+          </a>
+        </div>
+      </div>
+
+      <!-- 学习统计 -->
+      <div class="stat-side">
+        <div class="clay card rv">
+          <span class="eyebrow">Stats · 学习统计</span>
+          <div class="stat-grid">
+            <div class="stat-cell"><b class="num" id="n-master">0</b><small>已掌握单词</small></div>
+            <div class="stat-cell"><b class="num" data-streak>0</b><small>连续学习天数</small></div>
+            <div class="stat-cell"><b class="num" id="n-acc">—</b><small>测验正确率</small></div>
+            <div class="stat-cell"><b class="num" id="n-vocab">0</b><small>生词本词数</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 今日推荐文章 -->
+    <div class="clay article-mini rv" id="rec"></div>
+  </section>
+
+  <!-- ================= 记忆科学 ================= -->
+  <section class="sec" id="science">
+    <div class="sec-head">
+      <span class="eyebrow rv">Science · 记忆科学</span>
+      <h2 class="rv">复习踩点，而不是重复</h2>
+    </div>
+    <div class="clay curve-card rv">
+      <svg viewBox="0 0 520 250" style="width:100%;height:auto;display:block" role="img" aria-label="艾宾浩斯遗忘曲线与复习抬升示意图">
+        <line x1="24" y1="42"  x2="500" y2="42"  stroke="rgba(49,46,129,.08)"/>
+        <line x1="24" y1="120" x2="500" y2="120" stroke="rgba(49,46,129,.08)"/>
+        <line x1="24" y1="198" x2="500" y2="198" stroke="rgba(49,46,129,.08)"/>
+        <line x1="24" y1="228" x2="500" y2="228" stroke="rgba(49,46,129,.22)"/>
+        <path d="M24 42 C 110 140 200 185 300 200 C 370 210 440 213 500 214" fill="none" stroke="#A8A3D6" stroke-width="1.5" stroke-dasharray="5 7" opacity=".75"/>
+        <path d="M24 42 C 60 92 96 128 130 140 C 132 106 134 64 138 46 C 172 88 202 112 228 119 C 231 96 233 62 236 47 C 262 78 290 93 312 97 C 315 80 317 60 320 47 C 352 68 382 79 410 83 C 440 87 470 89 500 90" fill="none" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="138" cy="46" r="4.5" fill="#4F46E5" stroke="#FFFFFF" stroke-width="2"/>
+        <circle cx="236" cy="47" r="4.5" fill="#4F46E5" stroke="#FFFFFF" stroke-width="2"/>
+        <circle cx="320" cy="47" r="4.5" fill="#4F46E5" stroke="#FFFFFF" stroke-width="2"/>
+        <text x="24" y="30" font-size="10.5" fill="#4A4690" font-weight="600">首次学习</text>
+        <text x="138" y="30" font-size="10.5" fill="#4A4690" font-weight="600" text-anchor="middle">复习 ①</text>
+        <text x="236" y="30" font-size="10.5" fill="#4A4690" font-weight="600" text-anchor="middle">复习 ②</text>
+        <text x="320" y="30" font-size="10.5" fill="#4A4690" font-weight="600" text-anchor="middle">复习 ③</text>
+        <text x="470" y="246" font-size="10.5" fill="#4A4690" font-weight="600">时间 →</text>
+        <text x="24" y="16" font-size="10.5" fill="#4A4690" font-weight="600">记忆留存</text>
+      </svg>
+      <div class="curve-legend">
+        <span class="l1"><i></i>及时复习：留存被抬升、衰减变慢</span>
+        <span class="l2"><i></i>从不复习：24h 后仅剩约 1/3</span>
+      </div>
+      <p class="curve-note">R ≈ e<sup>−t/S</sup>——每次在遗忘临界点前复习，记忆强度 S 都会增大。SM-2 算法据此自动安排 1 → 6 → 15 → 37 → 93 天的复习间隔。</p>
+    </div>
+  </section>
+
+  <!-- ================= 学员评价 ================= -->
+  <section class="sec" id="voices">
+    <div class="sec-head">
+      <span class="eyebrow rv">Testimonials · 学员反馈</span>
+      <h2 class="rv">他们也在和遗忘曲线赛跑</h2>
+    </div>
+    <div class="rating-pill rv">
+      <span class="score">4.9</span>
+      <span class="stars" aria-hidden="true">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+      </span>
+      <small>学员综合评分 · 示例数据</small>
+    </div>
+    <div class="tst-grid">
+
+      <div class="clay tst rv">
+        <span class="tst-quote-mark" aria-hidden="true">&ldquo;</span>
+        <span class="tst-stars" aria-label="5 星">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </span>
+        <p class="tst-quote">最怕背了就忘。现在答错的词第二天准时回来&ldquo;找我&rdquo;，复习间隔还会自动拉长——两个月下来，单词书真的可以退休了。</p>
+        <div class="tst-who">
+          <span class="tst-avatar">林</span>
+          <div><b>林雨桐</b><small>六级 589 分 · 大三</small></div>
+        </div>
+      </div>
+
+      <div class="clay tst rv">
+        <span class="tst-quote-mark" aria-hidden="true">&ldquo;</span>
+        <span class="tst-stars" aria-label="5 星">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </span>
+        <p class="tst-quote">读财经文章不用来回切词典：悬浮就能看释义，顺手一点就进了生词本。阅读速度上来了，生词量反而稳稳往下走。</p>
+        <div class="tst-who">
+          <span class="tst-avatar">陈</span>
+          <div><b>陈亦舟</b><small>雅思 7.0 · 备考 3 个月</small></div>
+        </div>
+      </div>
+
+      <div class="clay tst rv">
+        <span class="tst-quote-mark" aria-hidden="true">&ldquo;</span>
+        <span class="tst-stars" aria-label="5 星">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg class="ic" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </span>
+        <p class="tst-quote">每天 20 分钟像玩游戏：单词打卡、读一篇小文、做个小测。streak 一天没断过——为了这串数字也得坚持。</p>
+        <div class="tst-who">
+          <span class="tst-avatar">王</span>
+          <div><b>王一诺</b><small>四级 512 分 · 大二</small></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================= 报名 CTA ================= -->
+  <section class="sec" id="enroll">
+    <div class="cta-panel rv">
+      <span class="eyebrow">Start Today · 立即开始</span>
+      <h2>今天开始，<em class="hl">明天</em>准时再见。</h2>
+      <p>无需注册、无需安装——打开页面就能学。学习数据保存在你的浏览器本地，进度、连续天数与复习队列随时可查。</p>
+      <div class="cta-acts">
+        <a class="btn btn-cta" href="words.html">免费开始学习<span class="ic"><svg viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></a>
+        <a class="btn btn-white" href="#courses">先逛逛课程</a>
+      </div>
+      <div class="cta-chips">
+        <span class="cta-chip"><svg class="ic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>无需注册</span>
+        <span class="cta-chip"><svg class="ic" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>数据本地保存</span>
+        <span class="cta-chip"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>每天 20 分钟</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <p class="foot-brand"><span class="brand-mark">E</span>EverWord</p>
+  <p class="foot-tag">科学记忆 · 沉浸阅读 · 主动回忆</p>
+  <div class="foot-links">
+    <a href="words.html">每日单词</a>
+    <a href="reading.html">分级阅读</a>
+    <a href="quiz.html">每日测验</a>
+    <a href="bank.html">真题题库</a>
+  </div>
+  <p class="foot-copy">© 2026 EverWord · 每日英语 — 用认知科学把英语长在记忆里</p>
+</footer>
+
+<script src="js/icons.js"></script>
+<script src="js/data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/srs.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  /* ---- 任务卡 ---- */
+  const q = SRS.queue();
+  const newN = q.filter(x => x.isNew).length;
+  const revN = q.length - newN;
+  const doneW = Prog.words;
+  const pWord = document.getElementById("p-word");
+  const sWord = document.getElementById("s-word");
+  const dWord = document.getElementById("d-word");
+  if (!q.length) {
+    pWord.style.transform = "scaleX(1)";
+    sWord.textContent = "已完成";
+    dWord.textContent = "明日 " + SRS.tomorrowDue + " 张卡片待复习";
+    document.getElementById("t-word").classList.add("done");
+  } else {
+    pWord.style.transform = "scaleX(" + Math.min(1, doneW / q.length) + ")";
+    sWord.textContent = doneW + " / " + q.length;
+    dWord.textContent = newN + " 个新词 · " + revN + " 个复习";
+  }
+
+  const readOK = Prog.read.length > 0;
+  document.getElementById("p-read").style.transform = "scaleX(" + (readOK ? 1 : 0.02) + ")";
+  document.getElementById("s-read").textContent = readOK ? "已完成" : "待阅读";
+  document.getElementById("d-read").textContent = "低 / 中 / 高 · 每日轮换";
+
+  const quizOK = Prog.quiz;
+  document.getElementById("p-quiz").style.transform = "scaleX(" + (quizOK ? 1 : 0.02) + ")";
+  document.getElementById("s-quiz").textContent = quizOK ? "已完成" : "待完成";
+  if (quizOK) document.getElementById("t-quiz").classList.add("done");
+
+  /* ---- 进度环 ---- */
+  const C = 2 * Math.PI * 35;
+  const wDone = !q.length || doneW >= q.length;
+  const pct = Math.round(((wDone ? 1 : 0) + (readOK ? 1 : 0) + (quizOK ? 1 : 0)) / 3 * 100);
+  const ring = document.getElementById("ring-val");
+  ring.style.strokeDasharray = C;
+  ring.style.strokeDashoffset = C;
+  document.getElementById("ring-pct").textContent = pct + "%";
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      ring.style.strokeDashoffset = C * (1 - pct / 100);
+    });
+  });
+
+  /* ---- 统计（数字滚动） ---- */
+  function countUp(el, val) {
+    const t = Math.min(900, 400 + val * 30);
+    const st = performance.now();
+    (function step(now) {
+      const p = Math.min(1, (now - st) / t);
+      const e = 1 - Math.pow(1 - p, 3);
+      el.textContent = Math.round(val * e);
+      if (p < 1) requestAnimationFrame(step);
+    })(st);
+  }
+  countUp(document.getElementById("n-master"), SRS.learnedCount);
+  countUp(document.getElementById("n-vocab"), SRS.vocabCount);
+  const acc = Stats.acc;
+  document.getElementById("n-acc").textContent = acc === null ? "—" : acc + "%";
+
+  /* ---- 今日推荐文章（按天轮换） ---- */
+  const rec = ARTICLES[Math.floor(Date.now() / 86400000) % ARTICLES.length];
+  const CLS = { 1: "low", 2: "mid", 3: "high" };
+  const NAME = { 1: "低", 2: "中", 3: "高" };
+  document.getElementById("rec").innerHTML = `
+    <div>
+      <span class="eyebrow">Daily Reading · 今日推荐</span>
+      <div class="a-mini-meta">
+        <span class="chip ${CLS[rec.lv]}">${NAME[rec.lv]}难度</span>
+        <span class="chip topic">${rec.topic}</span>
+      </div>
+      <h3 class="a-mini-title">${rec.title}</h3>
+      <p class="a-mini-zh">${rec.titleZh}</p>
+      <p class="a-mini-ex">${rec.paras[0].slice(0, 150)}…</p>
+    </div>
+    <a class="a-mini-link" href="reading.html?lv=${rec.lv}">进入沉浸阅读
+      <svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg>
+    </a>`;
+})();
+</script>
+</body>
+</html>

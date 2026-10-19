@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>每日文章 · EverWord</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<script>document.documentElement.className += " js";</script>
+</head>
+<body data-page="reading">
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="brand-mark">E</span><span class="brand-name">EverWord</span></a>
+  <a href="index.html" data-nav="home">首页</a>
+  <a href="words.html" data-nav="words">单词</a>
+  <a href="reading.html" data-nav="reading">阅读</a>
+  <a href="quiz.html" data-nav="quiz">测验</a>
+  <a href="bank.html" data-nav="bank">题库</a>
+</nav>
+
+<main class="wrap narrow">
+  <section class="page-head rv">
+    <span class="eyebrow">Daily Reading · 分级沉浸阅读</span>
+    <h1>今日文章</h1>
+    <div class="lvl-tabs" id="lvl-tabs">
+      <button data-lv="1">低 · 约 2000 词面</button>
+      <button data-lv="2" class="active">中 · 约 4500 词面</button>
+      <button data-lv="3">高 · 约 8000 词面</button>
+    </div>
+    <div class="a-picker" id="a-picker"></div>
+  </section>
+
+  <article class="bezel rv"><div class="core article" id="article"></div></article>
+
+  <div class="read-foot rv">
+    <button class="btn btn-primary" id="mark-read">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><span>标记已完成阅读</span>
+    </button>
+    <a class="btn btn-ghost" href="quiz.html">去做每日测验<span class="btn-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></a>
+  </div>
+  <p class="tip-note rv">提示：悬停文中带 <span class="tk-demo">虚线下划线</span> 的单词，即可查看释义、播放发音并一键加入生词本（明日进入复习队列）。</p>
+</main>
+
+<footer class="foot">
+  <p class="foot-brand">EverWord</p>
+  <p class="foot-tag">科学记忆 · 沉浸阅读 · 主动回忆</p>
+</footer>
+
+<script src="js/icons.js"></script>
+<script src="js/data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/srs.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/tts.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  const artEl = document.getElementById("article");
+  const tabs = document.getElementById("lvl-tabs");
+  const picker = document.getElementById("a-picker");
+  const markBtn = document.getElementById("mark-read");
+  const params = new URLSearchParams(location.search);
+  let lv = parseInt(params.get("lv") || "2", 10);
+  if (![1, 2, 3].includes(lv)) lv = 2;
+  let aIdx = 0, rate = 1;
+  const LV_NAME = { 1: "低", 2: "中", 3: "高" };
+  const LV_CLS = { 1: "low", 2: "mid", 3: "high" };
+
+  const listOf = l => ARTICLES.filter(a => a.lv === l);
+  function cur() {
+    const list = listOf(lv);
+    return list[Math.min(aIdx, list.length - 1)];
+  }
+
+  function setRead() {
+    markBtn.disabled = true;
+    markBtn.innerHTML = ICONS.check + "<span>已完成阅读</span>";
+  }
+
+  function render() {
+    const list = listOf(lv);
+    if (aIdx >= list.length) aIdx = 0;
+    const a = cur();
+    const words = a.paras.join(" ").trim().split(/\s+/).length;
+    const mins = Math.max(1, Math.round(words / 100));
+    tabs.querySelectorAll("button").forEach(b => b.classList.toggle("active", +b.dataset.lv === lv));
+    picker.innerHTML = list.length > 1
+      ? "<span class='a-picker-lab'>篇目</span>" + list.map((x, k) =>
+          '<button data-ai="' + k + '" class="' + (k === aIdx ? "active" : "") + '" title="' + x.titleZh + '">' + (k + 1) + ". " + x.title + "</button>").join("")
+      : "";
+    artEl.innerHTML = `
+      <div class="a-meta">
+        <span class="chip ${LV_CLS[lv]}">${LV_NAME[lv]}难度</span>
+        <span class="chip topic">${a.topic}</span>
+        <span class="a-info">${words} 词 · 约 ${mins} 分钟 · 原创文章</span>
+      </div>
+      <h2 class="a-title">${a.title}</h2>
+      <p class="a-titlezh">${a.titleZh}</p>
+      <div class="a-bar">
+        <button class="btn btn-ghost btn-sm" id="play-all">${ICONS.play}<span>播放全文</span></button>
+        <button class="btn btn-ghost btn-sm" id="stop-all">${ICONS.stop}<span>停止</span></button>
+        <div class="rate">
+          <span>语速</span>
+          <button data-r="0.8">0.8×</button>
+          <button data-r="1" class="active">1×</button>
+          <button data-r="1.2">1.2×</button>
+        </div>
+      </div>
+      <div class="prose" id="prose">${a.paras.map(p => "<p>" + p + "</p>").join("")}</div>`;
+
+    /* 篇目切换 */
+    picker.querySelectorAll("button[data-ai]").forEach(b =>
+      b.addEventListener("click", () => { aIdx = +b.dataset.ai; TTS.stop(); render(); }));
+
+    /* 悬浮取词 */
+    Dictip.bind(document.getElementById("prose"));
+
+    /* TTS 工具栏 */
+    document.getElementById("play-all").addEventListener("click", () => {
+      if (!TTS.ok) { toast("当前浏览器不支持语音合成"); return; }
+      const text = a.paras.join(" ");
+      const sents = (text.match(/[^.!?]+[.!?]+["']?\s*/g) || [text]).map(s => s.trim()).filter(Boolean);
+      TTS.speakSeq(sents, rate);
+    });
+    document.getElementById("stop-all").addEventListener("click", () => TTS.stop());
+    artEl.querySelectorAll(".rate button").forEach(b =>
+      b.addEventListener("click", () => {
+        rate = parseFloat(b.dataset.r);
+        artEl.querySelectorAll(".rate button").forEach(x => x.classList.toggle("active", x === b));
+      }));
+
+    /* 已读状态（切页后重置按钮再按进度点亮） */
+    markBtn.disabled = false;
+    markBtn.innerHTML = '<svg class="ic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><span>标记已完成阅读</span>';
+    if (Prog.read.includes(a.id)) setRead();
+  }
+
+  tabs.querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => { lv = +b.dataset.lv; aIdx = 0; TTS.stop(); render(); }));
+
+  markBtn.addEventListener("click", () => {
+    Prog.markRead(cur().id);
+    setRead();
+    toast("已记录今日阅读，任务卡已点亮");
+    Stats.touch();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>题库 · EverWord</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<script>document.documentElement.className += " js";</script>
+</head>
+<body data-page="bank">
+
+<nav class="nav">
+  <a class="brand" href="index.html"><span class="brand-mark">E</span><span class="brand-name">EverWord</span></a>
+  <a href="index.html" data-nav="home">首页</a>
+  <a href="words.html" data-nav="words">单词</a>
+  <a href="reading.html" data-nav="reading">阅读</a>
+  <a href="quiz.html" data-nav="quiz">测验</a>
+  <a href="bank.html" data-nav="bank">题库</a>
+</nav>
+
+<main class="wrap">
+  <section class="page-head rv">
+    <span class="eyebrow">Question Bank · 四六级 &amp; 雅思</span>
+    <h1>题库</h1>
+    <p class="page-sub">按考试与题型组织，每题附答案与解析。支持逐题自测（显示答案）与整卷练习（进入测验引擎计时作答）。</p>
+  </section>
+
+  <div class="bank-tabs rv" id="bank-tabs">
+    <button data-exam="CET-4" class="active">四级 CET-4</button>
+    <button data-exam="CET-6">六级 CET-6</button>
+    <button data-exam="TEM-8">专八 TEM-8</button>
+    <button data-exam="IELTS">雅思 IELTS</button>
+    <a class="btn btn-primary btn-sm" id="practice" href="quiz.html?exam=CET-4">整卷练习
+      <span class="btn-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span>
+    </a>
+  </div>
+
+  <div id="bank-list" class="bank-list"></div>
+  <p class="bank-note rv">版权说明：本库为原创模拟题，用于演示组织结构。四六级/雅思真题原文受版权保护，正式接入需出版方授权或改用公有领域语料（详见设计方案 2.4 节）。</p>
+</main>
+
+<footer class="foot">
+  <p class="foot-brand">EverWord</p>
+  <p class="foot-tag">科学记忆 · 沉浸阅读 · 主动回忆</p>
+</footer>
+
+<script src="js/icons.js"></script>
+<script src="js/data.js"></script>
+<script src="js/api.js"></script>
+<script src="js/srs.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/tts.js"></script>
+<script src="js/quiz.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  const tabs = document.getElementById("bank-tabs");
+  const list = document.getElementById("bank-list");
+  const practice = document.getElementById("practice");
+  let exam = "CET-4";
+
+  const blankify = s => String(s).replace(/_{4,}/g, '<span class="blank"></span>');
+
+  function render() {
+    tabs.querySelectorAll("button").forEach(b => b.classList.toggle("active", b.dataset.exam === exam));
+    practice.href = "quiz.html?exam=" + encodeURIComponent(exam);
+    const qs = BANK.filter(q => q.exam === exam);
+    list.innerHTML = qs.map((q, i) => `
+      <div class="bezel bank-q anim-in" data-a="${q.answer}" style="animation-delay:${i * 70}ms">
+        <div class="core">
+          <div class="b-head">
+            <span class="chip">${q.type}</span>
+            <span class="b-id">${q.id.toUpperCase()}</span>
+          </div>
+          ${q.passage ? '<div class="q-passage">' + q.passage + "</div>" : ""}
+          <p class="b-stem">${blankify(q.stem)}</p>
+          <div class="b-opts">
+            ${q.options.map((o, k) => '<div class="b-opt"><span>' + KEY_L[k] + "</span><span>" + o + "</span></div>").join("")}
+          </div>
+          <div class="b-ans" hidden>
+            <b>答案 ${KEY_L[q.answer]} · ${q.options[q.answer]}</b>
+            <p>${q.explain}</p>
+          </div>
+          <button class="btn btn-ghost btn-sm b-toggle">显示答案与解析</button>
+        </div>
+      </div>`).join("");
+
+    list.querySelectorAll(".bank-q").forEach(card => {
+      const tg = card.querySelector(".b-toggle");
+      tg.addEventListener("click", () => {
+        const ans = card.querySelector(".b-ans");
+        const open = !ans.hidden;
+        ans.hidden = open;
+        tg.textContent = open ? "显示答案与解析" : "收起答案";
+        const opt = card.querySelectorAll(".b-opt")[+card.dataset.a];
+        if (opt) opt.classList.toggle("hit", !open);
+      });
+    });
+  }
+
+  tabs.querySelectorAll("button").forEach(b =>
+    b.addEventListener("click", () => { exam = b.dataset.exam; render(); }));
+
+  render();
+})();
+</script>
+</body>
+</html>

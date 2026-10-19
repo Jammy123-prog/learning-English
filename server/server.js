@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /* ============================================================
-   EverWord API & 静态服务器 v1.1.0（零依赖）
+   EverWord API & 静态服务器 v1.2.0（零依赖）
    运行：node server/server.js   （需 Node.js ≥ 22）
    能力：
    - 静态托管前端（http://localhost:8787）
    - 账号：POST /api/register  POST /api/login（scrypt 口令散列 + HMAC-SHA256 令牌，30 天）
    - 云同步：GET/PUT /api/state（复习卡片 / 统计 / 每日进度 / 设置，最后写入胜出）
    - 词库目录：GET /api/words?level=CET-4|CET-6|TEM-8|IELTS（SQLite 种子库）
+              GET /api/words?q=xxx&limit=50（全库模糊检索：精确/前缀/包含/子序列/编辑距离）
+   - 新闻速览：GET /api/news?topic=&limit=&refresh=1（主流媒体 RSS 元数据，仅标题/链接/摘要，
+              不复制正文；懒刷新 30 分钟一次，CGTN 等源直连可达）
    数据库：默认内置 SQLite（data/everword.db，WAL）；MySQL 8 建表脚本见 server/mysql-schema.sql
    ============================================================ */
 
@@ -18,7 +21,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 
-const VERSION = "1.1.0";
+const VERSION = "1.2.0";
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "..", "data");
 const DB_FILE = path.join(DATA_DIR, "everword.db");
@@ -65,6 +68,16 @@ CREATE TABLE IF NOT EXISTS word (
   level      TEXT    NOT NULL,
   source     TEXT    NOT NULL DEFAULT 'builtin'
 );
+CREATE TABLE IF NOT EXISTS news_item (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  link       TEXT    NOT NULL UNIQUE,
+  title      TEXT    NOT NULL,
+  source     TEXT    NOT NULL,
+  topic      TEXT    NOT NULL,
+  published  TEXT,
+  summary    TEXT,
+  fetched_at TEXT    NOT NULL DEFAULT (datetime('now'))
+);
 CREATE TABLE IF NOT EXISTS sync_log (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id    INTEGER NOT NULL,
@@ -90,6 +103,33 @@ function seedWords() {
   console.log("[ev] 词库种子已灌入 SQLite：" + n + " 词");
 }
 seedWords();
+
+/* 词库目录种子：从 js/vocab-catalog.js 提取 CET-4/CET-6/IELTS 全量词目灌入
+   （仅词目 + 级别归属，无释义——释义由前端按需查询 dictionaryapi.dev 缓存） */
+function seedCatalog() {
+  const fp = path.join(ROOT, "js", "vocab-catalog.js");
+  if (!fs.existsSync(fp)) return;
+  const m = fs.readFileSync(fp, "utf8").match(/window\.EV_CATALOG\s*=\s*([\s\S]+?);\s*$/);
+  if (!m) return console.log("[ev] 词库目录文件格式异常，跳过");
+  let data;
+  try { data = JSON.parse(m[1]); } catch (e) { return console.log("[ev] 词库目录 JSON 解析失败，跳过"); }
+  const have = db.prepare("SELECT COUNT(*) AS c FROM word WHERE source = 'catalog'").get().c;
+  const map = new Map();
+  for (const k of ["CET-4", "CET-6", "IELTS"]) (data.levels[k] || []).forEach(w => {
+    if (!map.has(w)) map.set(w, []);
+    map.get(w).push(k);
+  });
+  if (have >= map.size) return;
+  const ins = db.prepare(
+    "INSERT OR IGNORE INTO word (headword, ipa, pos, definition, example, example_zh, level, source) VALUES (?, NULL, NULL, '', NULL, NULL, ?, 'catalog')"
+  );
+  db.exec("BEGIN");
+  let n = 0;
+  map.forEach((lvs, w) => { if (ins.run(w, lvs.join(",")).changes > 0) n++; });
+  db.exec("COMMIT");
+  console.log("[ev] 词库目录已灌入 SQLite：" + n + " 词目（CET-4/CET-6/IELTS 去重 " + map.size + "）");
+}
+seedCatalog();
 
 /* ---------------- 口令与令牌 ---------------- */
 function hashPass(pw) {
@@ -134,6 +174,93 @@ function json(res, status, obj) {
 }
 const bad = (res, msg, code) => json(res, code || 400, { ok: false, error: msg || "bad request" });
 
+/* ---------------- 模糊检索工具 ---------------- */
+function isSubseq(q, h) {
+  let i = 0;
+  for (const ch of h) { if (ch === q[i]) { i++; if (i === q.length) return true; } }
+  return i === q.length;
+}
+/* 有上限的编辑距离（超出 cap 提前返回 -1，控制 13k 词目扫描成本） */
+function lev(a, b, cap) {
+  if (Math.abs(a.length - b.length) > cap) return -1;
+  let prev = new Array(b.length + 1), cur = new Array(b.length + 1);
+  for (let j = 0; j <= b.length; j++) prev[j] = j;
+  for (let i = 1; i <= a.length; i++) {
+    cur[0] = i;
+    let best = cur[0];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (cur[j] < best) best = cur[j];
+    }
+    if (best > cap) return -1;
+    const t = prev; prev = cur; cur = t;
+  }
+  return prev[b.length] > cap ? -1 : prev[b.length];
+}
+
+/* ---------------- 新闻源（RSS 元数据：标题/链接/来源/日期/摘要，不含正文） ----------------
+   默认 CGTN 各版块（中国大陆直连可达）；网络条件允许时可追加经济学人/卫报等任意 RSS。 */
+const NEWS_FEEDS = [
+  { url: "https://www.cgtn.com/subscribe/rss/section/world.xml",    topic: "政治·世界", source: "CGTN" },
+  { url: "https://www.cgtn.com/subscribe/rss/section/business.xml", topic: "财经·商业", source: "CGTN" },
+  { url: "https://www.cgtn.com/subscribe/rss/section/culture.xml",  topic: "文化·艺术", source: "CGTN" },
+  { url: "https://www.cgtn.com/subscribe/rss/section/opinion.xml",  topic: "观点·评论", source: "CGTN" },
+  { url: "https://www.cgtn.com/subscribe/rss/section/nature.xml",   topic: "自然·环保", source: "CGTN" },
+  { url: "https://www.cgtn.com/subscribe/rss/section/travel.xml",   topic: "旅游·人文", source: "CGTN" },
+  { url: "https://www.cgtn.com/subscribe/rss/section/sports.xml",   topic: "体育", source: "CGTN" }
+];
+const NEWS_TTL = 30 * 60 * 1000;
+const NEWS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36";
+let newsStamp = 0, newsBusy = false;
+
+function xmlClean(s) {
+  return String(s || "")
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ").trim();
+}
+async function refreshNews(force) {
+  if (newsBusy) return;
+  if (!force && Date.now() - newsStamp < NEWS_TTL) return;
+  newsBusy = true;
+  try {
+    const results = await Promise.allSettled(NEWS_FEEDS.map(async f => {
+      const r = await fetch(f.url, { headers: { "User-Agent": NEWS_UA }, signal: AbortSignal.timeout(6000) });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return { f, xml: await r.text() };
+    }));
+    const ins = db.prepare(
+      "INSERT OR IGNORE INTO news_item (link, title, source, topic, published, summary) VALUES (?, ?, ?, ?, ?, ?)"
+    );
+    let n = 0;
+    db.exec("BEGIN");
+    for (const it of results) {
+      if (it.status !== "fulfilled") continue;
+      const { f, xml } = it.value;
+      const blocks = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+      for (const b of blocks) {
+        const pick = tag => { const m = b.match(new RegExp("<" + tag + ">([\\s\\S]*?)</" + tag + ">", "i")); return m ? xmlClean(m[1]) : ""; };
+        const title = pick("title").slice(0, 220);
+        let link = pick("link");
+        if (!link) { const m = b.match(/<link[^>]*href="([^"]+)"/i); if (m) link = m[1]; }
+        if (!title || !link) continue;
+        let pub = "";
+        try { const pd = pick("pubDate"); if (pd) pub = new Date(pd).toISOString(); } catch (e) {}
+        if (ins.run(link, title, f.source, f.topic, pub, pick("description").slice(0, 200)).changes > 0) n++;
+      }
+    }
+    db.exec("COMMIT");
+    newsStamp = Date.now();
+    if (n) console.log("[ev] 新闻刷新：新增 " + n + " 条");
+  } catch (e) {
+    console.log("[ev] 新闻刷新失败：" + e.message);
+  } finally {
+    newsBusy = false;
+  }
+}
+
 /* ---------------- API 处理 ---------------- */
 async function handleApi(req, res, url, body) {
   const p = url.pathname;
@@ -168,17 +295,57 @@ async function handleApi(req, res, url, body) {
     return json(res, 200, { ok: true, token, name: u.name, uid: u.id });
   }
 
-  /* ---- 词库目录（公开） ---- */
+  /* ---- 词库目录（公开）：级别过滤 / 模糊检索 ---- */
   if (p === "/api/words" && req.method === "GET") {
+    const q = (url.searchParams.get("q") || "").trim().toLowerCase();
     const lv = url.searchParams.get("level");
     const LEGAL = ["CET-4", "CET-6", "TEM-8", "IELTS"];
-    let rows;
-    if (lv && LEGAL.includes(lv)) {
-      rows = db.prepare("SELECT id, headword, ipa, pos, definition, example, example_zh, level FROM word WHERE level = ? ORDER BY id").all(lv);
-    } else {
-      rows = db.prepare("SELECT id, headword, ipa, pos, definition, example, example_zh, level FROM word ORDER BY id").all();
+    const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit"), 10) || 100));
+    const COLS = "id, headword, ipa, pos, definition, example, example_zh, level";
+
+    if (q) {
+      /* 全库模糊检索：精确 > 前缀 > 包含 > 子序列 > 有界编辑距离 > 释义包含 */
+      const all = db.prepare("SELECT " + COLS + " FROM word").all();
+      const scored = [];
+      for (const r of all) {
+        const h = r.headword.toLowerCase();
+        let s = 0;
+        if (h === q) s = 100;
+        else if (h.startsWith(q)) s = 90 - Math.min(10, h.length - q.length);
+        else if (h.includes(q)) s = 70 - (h.length - q.length);
+        else if (q.length >= 2 && isSubseq(q, h)) s = 50 - Math.min(10, h.length - q.length);
+        else if (q.length >= 3) { const d = lev(q, h, 2); if (d >= 0) s = 46 - d * 8; }
+        if (!s && r.definition && r.definition.includes(q)) s = 30;
+        if (s) scored.push({ r, s });
+      }
+      scored.sort((a, b) => b.s - a.s || a.r.headword.localeCompare(b.r.headword));
+      const words = scored.slice(0, limit).map(x => x.r);
+      return json(res, 200, { ok: true, count: words.length, words });
     }
+
+    if (lv && LEGAL.includes(lv)) {
+      /* 目录词 level 为逗号连接多级别（如 CET-4,CET-6），用 LIKE 匹配 */
+      const rows = db.prepare("SELECT " + COLS + " FROM word WHERE level LIKE ? ORDER BY id LIMIT ?").all("%" + lv + "%", limit);
+      return json(res, 200, { ok: true, count: rows.length, words: rows });
+    }
+    const rows = db.prepare("SELECT " + COLS + " FROM word ORDER BY id LIMIT ?").all(limit);
     return json(res, 200, { ok: true, count: rows.length, words: rows });
+  }
+
+  /* ---- 新闻速览（公开）：主流媒体 RSS 元数据，懒刷新 ---- */
+  if (p === "/api/news" && req.method === "GET") {
+    const topic = url.searchParams.get("topic");
+    const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit"), 10) || 50));
+    const force = url.searchParams.get("refresh") === "1";
+    await refreshNews(force);
+    const WHERE = topic ? "WHERE topic = ?" : "";
+    const args = topic ? [topic, limit] : [limit];
+    const rows = db.prepare(
+      "SELECT title, link, source, topic, published, summary FROM news_item " + WHERE + " ORDER BY published DESC, id DESC LIMIT ?"
+    ).all(...args);
+    const total = db.prepare("SELECT COUNT(*) AS c FROM news_item").get().c;
+    const topics = db.prepare("SELECT DISTINCT topic FROM news_item").all().map(x => x.topic);
+    return json(res, 200, { ok: true, total, count: rows.length, topics, items: rows, refreshedAt: new Date(newsStamp).toISOString() });
   }
 
   /* ---- 以下接口需要登录 ---- */
@@ -314,6 +481,8 @@ server.listen(PORT, () => {
   console.log("  数据库     " + DB_FILE);
   console.log("  提示       打开页面后右下角/导航栏点「云同步」注册账号");
   console.log("");
+  /* 启动即预热新闻源（不阻塞监听） */
+  refreshNews(true).catch(() => {});
 });
 
 process.on("SIGINT", () => {

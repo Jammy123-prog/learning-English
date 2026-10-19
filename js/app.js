@@ -3,6 +3,10 @@
 /* 级别 → 样式类 */
 const lvClass = lv => lv === "CET-4" ? "c4" : lv === "CET-6" ? "c6" : lv === "TEM-8" ? "t8" : "ie";
 
+/* HTML 转义（搜索结果 / 新闻标题等动态内容渲染前必须经过） */
+const escHtml = s => String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
 /* ---------- 日期 / 连续天数渲染 ---------- */
 const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
 function renderDates() {

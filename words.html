@@ -51,6 +51,16 @@
       <span><b id="q-master">0</b>已掌握</span>
       <span class="w-pool" id="q-pool"></span>
     </div>
+    <div class="search-panel">
+      <div class="sp-box">
+        <svg class="sp-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="w-search" type="search" placeholder="搜索 10,000+ 词目：abandon、resil、通胀……支持拼写模糊与中文释义" autocomplete="off" spellcheck="false" aria-label="搜索词库">
+        <button class="sp-clear" id="sp-clear" hidden>清空</button>
+      </div>
+      <p class="sp-meta" id="sp-meta" hidden></p>
+      <div class="sp-results" id="sp-results" hidden></div>
+      <div class="sp-detail" id="sp-detail" hidden></div>
+    </div>
   </section>
 
   <div id="session"></div>
@@ -63,6 +73,7 @@
 
 <script src="js/icons.js"></script>
 <script src="js/data.js"></script>
+<script src="js/vocab-catalog.js"></script>
 <script src="js/api.js"></script>
 <script src="js/srs.js"></script>
 <script src="js/settings.js"></script>
@@ -71,6 +82,183 @@
 <script>
 (function () {
   const mount = document.getElementById("session");
+
+  /* ============ 词库搜索（精选 160 详解 + CET-4/CET-6/IELTS 全量目录，模糊匹配） ============ */
+  const sIn = document.getElementById("w-search");
+  const sMeta = document.getElementById("sp-meta");
+  const sRes = document.getElementById("sp-results");
+  const sDet = document.getElementById("sp-detail");
+  const sClr = document.getElementById("sp-clear");
+
+  /* 索引：精选词（含释义）∪ 目录词目（多级别标签） */
+  const IDX = (() => {
+    const map = new Map();
+    WORDS.forEach(x => map.set(x.w.toLowerCase(), {
+      w: x.w, ipa: x.ipa, pos: x.pos, def: x.def, ex: x.ex, exZh: x.exZh, lvs: [x.lv], cur: true
+    }));
+    const CAT = (typeof EV_CATALOG !== "undefined" && EV_CATALOG) ? EV_CATALOG : { levels: {} };
+    Object.keys(CAT.levels || {}).forEach(lv => (CAT.levels[lv] || []).forEach(w => {
+      const e = map.get(w);
+      if (e) { if (!e.lvs.includes(lv)) e.lvs.push(lv); }
+      else map.set(w, { w, ipa: "", pos: "", def: "", ex: "", exZh: "", lvs: [lv], cur: false });
+    }));
+    return [...map.values()];
+  })();
+
+  /* 模糊打分：精确 > 前缀 > 包含 > 子序列 > 有界编辑距离 */
+  function subseq(q, h) {
+    let i = 0;
+    for (const ch of h) { if (ch === q[i] && ++i === q.length) return true; }
+    return false;
+  }
+  function lev2(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return -1;
+    let prev = new Array(b.length + 1), cur = new Array(b.length + 1);
+    for (let j = 0; j <= b.length; j++) prev[j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      cur[0] = i;
+      let best = cur[0];
+      for (let j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (cur[j] < best) best = cur[j];
+      }
+      if (best > 2) return -1;
+      const t = prev; prev = cur; cur = t;
+    }
+    return prev[b.length] > 2 ? -1 : prev[b.length];
+  }
+  function scoreOf(q, h) {
+    if (h === q) return 100;
+    if (h.startsWith(q)) return 90 - Math.min(10, h.length - q.length);
+    if (h.includes(q)) return 70 - (h.length - q.length);
+    if (q.length >= 2 && subseq(q, h)) return 50 - Math.min(10, h.length - q.length);
+    if (q.length >= 3) { const d = lev2(q, h); if (d >= 0) return 46 - d * 8; }
+    return 0;
+  }
+
+  const lvChip = l => '<span class="sr-lv ' + lvClass(l) + '">' + l + "</span>";
+
+  function doSearch() {
+    const q = sIn.value.trim().toLowerCase();
+    sClr.hidden = !q;
+    sDet.hidden = true;
+    if (q.length < 2) { sRes.hidden = true; sMeta.hidden = true; return; }
+    const cjk = /[\u4e00-\u9fff]/.test(q);
+    const scored = [];
+    for (const e of IDX) {
+      let s = cjk ? 0 : scoreOf(q, e.w.toLowerCase());
+      if (!s && (e.def.includes(q) || (e.exZh || "").includes(q))) s = 40;
+      if (s > 0) scored.push({ e, s });
+    }
+    scored.sort((a, b) => b.s - a.s || a.e.w.localeCompare(b.e.w));
+    const top = scored.slice(0, 40);
+    sMeta.hidden = false;
+    sMeta.textContent = top.length
+      ? (cjk ? "按中文释义匹配到 " : "匹配到 ") + top.length + " 个词（共索引 " + IDX.length + " 词目）"
+      : "没有相近的词，试试更短或更常见的拼写";
+    if (!top.length) { sRes.hidden = true; return; }
+    sRes.hidden = false;
+    sRes.innerHTML = top.map((x, i) =>
+      '<button class="sr-row" data-i="' + i + '">' +
+        '<span class="sr-w">' + escHtml(x.e.w) + "</span>" +
+        '<span class="sr-lvs">' + x.e.lvs.map(lvChip).join("") + "</span>" +
+        '<span class="sr-prev">' + (x.e.cur ? escHtml(x.e.def) : "目录词 · 点击联网查询释义") + "</span>" +
+        (x.e.cur ? '<span class="sr-tag">详解</span>' : "") +
+      "</button>").join("");
+    sRes.querySelectorAll(".sr-row").forEach(b =>
+      b.addEventListener("click", () => showDetail(top[+b.dataset.i].e)));
+  }
+
+  /* 详情卡：精选词直接展示；目录词按需查询 dictionaryapi.dev 并缓存（ev_dict） */
+  const DICT_CACHE_KEY = "ev_dict";
+  const dictCache = () => { try { return JSON.parse(localStorage.getItem(DICT_CACHE_KEY) || "{}"); } catch (err) { return {}; } };
+
+  function showDetail(e) {
+    sRes.hidden = true; sMeta.hidden = true; sDet.hidden = false;
+    sDet.innerHTML = `
+      <div class="sd-head">
+        <span class="sd-w">${escHtml(e.w)}</span>
+        <span class="sd-ipa" id="sd-ipa">${escHtml(e.ipa || "")}</span>
+        <span class="sr-lvs">${e.lvs.map(lvChip).join("")}</span>
+        <span class="sd-acts">
+          <button class="vr-mini" id="sd-say">${ICONS.speaker}<span>发音</span></button>
+          <button class="vr-mini" id="sd-add">${ICONS.plus}<span>生词本</span></button>
+        </span>
+      </div>
+      <div class="sd-def" id="sd-def">${
+        e.cur
+          ? '<span class="sd-pos">' + escHtml(e.pos || "") + "</span>" + escHtml(e.def)
+          : '<span class="sd-note load" id="sd-note">正在联网查询释义…</span>'
+      }</div>
+      <div class="sd-ex" id="sd-ex" hidden></div>
+      <p class="sd-note" id="sd-src">${e.cur ? "来自精选词库：含音标、释义与例句" : "来自词库目录（" + e.lvs.join(" / ") + "）"}</p>`;
+    document.getElementById("sd-say").addEventListener("click", () => {
+      if (!TTS.speak(e.w)) toast("当前浏览器不支持语音合成");
+    });
+    document.getElementById("sd-add").addEventListener("click", () => {
+      const key = e.w.toLowerCase();
+      const added = SRS.addWord(key, {
+        w: key, ipa: e.ipa || "", pos: e.pos || "", def: e.def || "",
+        ex: e.ex || "", exZh: e.exZh || "", lv: e.lvs[0] || "检索"
+      });
+      toast(added ? "已加入生词本，明日开始复习" : "已在生词本中");
+    });
+    if (e.cur && e.ex) {
+      const ex = document.getElementById("sd-ex");
+      ex.hidden = false;
+      ex.innerHTML = "<p>" + escHtml(e.ex) + "</p>" + (e.exZh ? '<p class="zh">' + escHtml(e.exZh) + "</p>" : "");
+    }
+    if (!e.cur) fetchDict(e);
+  }
+
+  function parseDictApi(a) {
+    try {
+      const en = a[0];
+      const ph = (en.phonetics || []).map(p => p.text).filter(Boolean)[0] || "";
+      const m = (en.meanings || [])[0] || {};
+      const d = (m.definitions || [])[0] || {};
+      if (!d.definition) return null;
+      return { ipa: ph, pos: m.partOfSpeech || "", def: d.definition, ex: d.example || "" };
+    } catch (err) { return null; }
+  }
+  function paintDict(e, h) {
+    const ipa = document.getElementById("sd-ipa");
+    if (ipa && h.ipa) ipa.textContent = h.ipa;
+    const def = document.getElementById("sd-def");
+    if (def) def.innerHTML = (h.pos ? '<span class="sd-pos">' + escHtml(h.pos) + "</span>" : "") + escHtml(h.def);
+    if (h.ex) {
+      const ex = document.getElementById("sd-ex");
+      if (ex) { ex.hidden = false; ex.innerHTML = "<p>" + escHtml(h.ex) + "</p>"; }
+    }
+    const n = document.getElementById("sd-note");
+    if (n) { n.classList.remove("load"); n.textContent = "释义来自免费词典 API（dictionaryapi.dev），查询结果已本地缓存。"; }
+  }
+  function fetchDict(e) {
+    const cache = dictCache();
+    if (cache[e.w]) return paintDict(e, cache[e.w]);
+    fetch("https://api.dictionaryapi.dev/api/v2/entries/en/" + encodeURIComponent(e.w))
+      .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+      .then(a => {
+        const hit = parseDictApi(a);
+        if (!hit) throw new Error("empty");
+        cache[e.w] = hit;
+        try { localStorage.setItem(DICT_CACHE_KEY, JSON.stringify(cache)); } catch (err) {}
+        paintDict(e, hit);
+      })
+      .catch(() => {
+        const n = document.getElementById("sd-note");
+        if (n) { n.classList.remove("load"); n.textContent = "释义查询失败（需联网或该词暂无收录）——仍可发音并加入生词本。"; }
+      });
+  }
+
+  let sT = null;
+  sIn.addEventListener("input", () => { clearTimeout(sT); sT = setTimeout(doSearch, 160); });
+  sIn.addEventListener("keydown", ev => {
+    if (ev.key === "Enter") { ev.preventDefault(); const f = sRes.querySelector(".sr-row"); if (f) f.click(); }
+    if (ev.key === "Escape") { sIn.value = ""; doSearch(); }
+  });
+  sClr.addEventListener("click", () => { sIn.value = ""; doSearch(); sIn.focus(); });
+  /* ============ /词库搜索 ============ */
 
   /* ---- 控制行：级别 / 每日新词数量 / 下一批 ---- */
   const lvSel = document.getElementById("lv-select");

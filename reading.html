@@ -21,7 +21,7 @@
   <a href="bank.html" data-nav="bank">题库</a>
 </nav>
 
-<main class="wrap narrow">
+<main class="wrap">
   <section class="page-head rv">
     <span class="eyebrow">Daily Reading · 分级沉浸阅读</span>
     <h1>今日文章</h1>
@@ -33,15 +33,41 @@
     <div class="a-picker" id="a-picker"></div>
   </section>
 
-  <article class="bezel rv"><div class="core article" id="article"></div></article>
+  <div class="read-grid rv">
+    <div class="read-main">
+      <article class="bezel"><div class="core article" id="article"></div></article>
 
-  <div class="read-foot rv">
-    <button class="btn btn-primary" id="mark-read">
-      <svg class="ic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><span>标记已完成阅读</span>
-    </button>
-    <a class="btn btn-ghost" href="quiz.html">去做每日测验<span class="btn-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></a>
+      <div class="read-foot rv">
+        <button class="btn btn-primary" id="mark-read">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><span>标记已完成阅读</span>
+        </button>
+        <a class="btn btn-ghost" href="quiz.html">去做每日测验<span class="btn-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></a>
+      </div>
+      <p class="tip-note rv">提示：悬停文中带 <span class="tk-demo">虚线下划线</span> 的单词即可查词；右侧词汇栏列出本文<b>重要词汇</b>，点击词条可定位到正文出现处。</p>
+    </div>
+
+    <aside class="vocab-rail" id="vocab-rail" aria-label="本文重要词汇">
+      <div class="vr-head">
+        <span class="vr-title">重要词汇</span>
+        <span class="vr-count" id="vr-count">0</span>
+      </div>
+      <p class="vr-sub">点击词条定位正文 · 悬停联动高亮</p>
+      <div id="vr-list"></div>
+    </aside>
   </div>
-  <p class="tip-note rv">提示：悬停文中带 <span class="tk-demo">虚线下划线</span> 的单词，即可查看释义、播放发音并一键加入生词本（明日进入复习队列）。</p>
+
+  <section class="news-sec rv">
+    <div class="ns-card">
+      <div class="ns-head">
+        <span class="ns-title">新闻速览</span>
+        <span class="ns-badge" id="ns-badge">快照</span>
+        <button class="ns-refresh" id="ns-refresh" hidden>刷新</button>
+      </div>
+      <div class="ns-chips" id="ns-chips"></div>
+      <div class="ns-list" id="ns-list"></div>
+      <p class="ns-note" id="ns-note"></p>
+    </div>
+  </section>
 </main>
 
 <footer class="foot">
@@ -56,12 +82,15 @@
 <script src="js/settings.js"></script>
 <script src="js/tts.js"></script>
 <script src="js/app.js"></script>
+<script src="js/news-data.js"></script>
 <script>
 (function () {
   const artEl = document.getElementById("article");
   const tabs = document.getElementById("lvl-tabs");
   const picker = document.getElementById("a-picker");
   const markBtn = document.getElementById("mark-read");
+  const vrList = document.getElementById("vr-list");
+  const vrCount = document.getElementById("vr-count");
   const params = new URLSearchParams(location.search);
   let lv = parseInt(params.get("lv") || "2", 10);
   if (![1, 2, 3].includes(lv)) lv = 2;
@@ -80,6 +109,87 @@
     markBtn.innerHTML = ICONS.check + "<span>已完成阅读</span>";
   }
 
+  /* ---------------- 右侧词汇栏（TED 式）：重要词汇 + 双向联动 ---------------- */
+  function renderRail(a) {
+    const keys = Object.keys(a.gloss);
+    vrCount.textContent = keys.length;
+    vrList.innerHTML = keys.map(k => {
+      const g = a.gloss[k];
+      return '<div class="vr-item" data-k="' + escHtml(k) + '">' +
+        '<div class="vr-row">' +
+          '<span class="vr-w">' + escHtml(k) + "</span>" +
+          '<span class="vr-pos">' + escHtml(g.pos || "") + "</span>" +
+          '<button class="vr-mini" data-act="say" data-w="' + escHtml(k) + '">' + ICONS.speaker + "<span>发音</span></button>" +
+          '<button class="vr-mini" data-act="add" data-w="' + escHtml(k) + '">' + ICONS.plus + "<span>生词本</span></button>" +
+        "</div>" +
+        '<div class="vr-def">' + escHtml(g.def) + "</div>" +
+      "</div>";
+    }).join("");
+  }
+
+  /* 词条 → 正文定位：取词还原后匹配词条键 */
+  function stemCands(k) {
+    const c = [k, k.replace(/'s$/, "")];
+    if (/ies$/.test(k)) c.push(k.slice(0, -3) + "y");
+    if (/es$/.test(k)) c.push(k.slice(0, -2));
+    if (/s$/.test(k) && !/ss$/.test(k)) c.push(k.slice(0, -1));
+    if (/ed$/.test(k)) { c.push(k.slice(0, -2)); c.push(k.slice(0, -1)); }
+    if (/ing$/.test(k)) { c.push(k.slice(0, -3)); c.push(k.slice(0, -3) + "e"); c.push(k.slice(0, -4)); }
+    if (/ly$/.test(k)) c.push(k.slice(0, -2));
+    return c;
+  }
+  function locateWord(key) {
+    const prose = document.getElementById("prose");
+    if (!prose) return;
+    const toks = prose.querySelectorAll(".tk-x");
+    for (const t of toks) {
+      const raw = String(t.dataset.w || "").toLowerCase();
+      if (stemCands(raw).includes(key)) {
+        t.scrollIntoView({ behavior: "smooth", block: "center" });
+        t.classList.remove("hl");
+        void t.offsetWidth;
+        t.classList.add("hl");
+        return;
+      }
+    }
+    toast("「" + key + "」在当前段落没有高亮形态，可悬停正文查词");
+  }
+
+  vrList.addEventListener("click", e => {
+    const btn = e.target.closest("[data-act]");
+    const item = e.target.closest(".vr-item");
+    if (btn) {
+      const w = btn.dataset.w;
+      if (btn.dataset.act === "say") {
+        if (!TTS.speak(w)) toast("当前浏览器不支持语音合成");
+      } else {
+        const hit = DICT[w];
+        const added = SRS.addWord(w, hit ? { w, ipa: hit.ipa || "", pos: hit.pos, def: hit.def, ex: "", exZh: "", lv: "阅读" } : null);
+        toast(added ? "已加入生词本，明日开始复习" : "已在生词本中");
+      }
+      return;
+    }
+    if (item) locateWord(item.dataset.k);
+  });
+
+  /* 正文 → 词栏联动：悬停命中词时高亮右侧词条 */
+  document.addEventListener("mouseover", e => {
+    const tk = e.target.closest && e.target.closest(".tk-x");
+    if (!tk) return;
+    const raw = String(tk.dataset.w || "").toLowerCase();
+    const key = stemCands(raw).find(k => DICT[k]);
+    if (!key) return;
+    vrList.querySelectorAll(".vr-item.on").forEach(x => x.classList.remove("on"));
+    const item = vrList.querySelector('.vr-item[data-k="' + key + '"]');
+    if (item) item.classList.add("on");
+  });
+  document.addEventListener("mouseout", e => {
+    if (e.target.closest && e.target.closest(".tk-x")) {
+      vrList.querySelectorAll(".vr-item.on").forEach(x => x.classList.remove("on"));
+    }
+  });
+
+  /* ---------------- 正文渲染 ---------------- */
   function render() {
     const list = listOf(lv);
     if (aIdx >= list.length) aIdx = 0;
@@ -89,7 +199,7 @@
     tabs.querySelectorAll("button").forEach(b => b.classList.toggle("active", +b.dataset.lv === lv));
     picker.innerHTML = list.length > 1
       ? "<span class='a-picker-lab'>篇目</span>" + list.map((x, k) =>
-          '<button data-ai="' + k + '" class="' + (k === aIdx ? "active" : "") + '" title="' + x.titleZh + '">' + (k + 1) + ". " + x.title + "</button>").join("")
+          '<button data-ai="' + k + '" class="' + (k === aIdx ? "active" : "") + '" title="' + escHtml(x.titleZh) + '">' + (k + 1) + ". " + escHtml(x.title) + "</button>").join("")
       : "";
     artEl.innerHTML = `
       <div class="a-meta">
@@ -97,8 +207,8 @@
         <span class="chip topic">${a.topic}</span>
         <span class="a-info">${words} 词 · 约 ${mins} 分钟 · 原创文章</span>
       </div>
-      <h2 class="a-title">${a.title}</h2>
-      <p class="a-titlezh">${a.titleZh}</p>
+      <h2 class="a-title">${escHtml(a.title)}</h2>
+      <p class="a-titlezh">${escHtml(a.titleZh)}</p>
       <div class="a-bar">
         <button class="btn btn-ghost btn-sm" id="play-all">${ICONS.play}<span>播放全文</span></button>
         <button class="btn btn-ghost btn-sm" id="stop-all">${ICONS.stop}<span>停止</span></button>
@@ -109,7 +219,9 @@
           <button data-r="1.2">1.2×</button>
         </div>
       </div>
-      <div class="prose" id="prose">${a.paras.map(p => "<p>" + p + "</p>").join("")}</div>`;
+      <div class="prose" id="prose">${a.paras.map(p => "<p>" + escHtml(p) + "</p>").join("")}</div>`;
+
+    renderRail(a);
 
     /* 篇目切换 */
     picker.querySelectorAll("button[data-ai]").forEach(b =>
@@ -149,6 +261,76 @@
   });
 
   render();
+
+  /* ================= 新闻速览（主流媒体 RSS 元数据，点击跳原文） ================= */
+  const nsList = document.getElementById("ns-list");
+  const nsChips = document.getElementById("ns-chips");
+  const nsBadge = document.getElementById("ns-badge");
+  const nsNote = document.getElementById("ns-note");
+  const nsRefresh = document.getElementById("ns-refresh");
+  const IS_SERVER = location.protocol === "http:" || location.protocol === "https:";
+  let nsTopic = "", nsItems = [], nsTopics = [];
+
+  function fmtDate(iso) {
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (isNaN(d)) return "";
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+  function renderNews() {
+    const items = nsTopic ? nsItems.filter(x => x.tp === nsTopic) : nsItems;
+    const shown = items.slice(0, 60);
+    nsChips.innerHTML = '<button class="ns-chip' + (nsTopic === "" ? " active" : "") + '" data-t="">全部</button>' +
+      nsTopics.map(t => '<button class="ns-chip' + (nsTopic === t ? " active" : "") + '" data-t="' + escHtml(t) + '">' + escHtml(t) + "</button>").join("");
+    nsChips.querySelectorAll(".ns-chip").forEach(b =>
+      b.addEventListener("click", () => { nsTopic = b.dataset.t; renderNews(); }));
+    if (!shown.length) {
+      nsList.innerHTML = '<div class="ns-empty">暂无新闻——服务器模式下点「刷新」拉取最新条目</div>';
+      return;
+    }
+    nsList.innerHTML = shown.map(x =>
+      '<div class="ns-item">' +
+        '<div class="ns-meta"><span class="ns-src">' + escHtml(x.s || "媒体") + "</span>" +
+        (x.tp ? "<span>" + escHtml(x.tp) + "</span>" : "") +
+        (fmtDate(x.d) ? "<span>" + fmtDate(x.d) + "</span>" : "") + "</div>" +
+        '<a class="ns-link" href="' + escHtml(x.u) + '" target="_blank" rel="noopener noreferrer">' + escHtml(x.t) + "</a>" +
+        (x.x ? '<p class="ns-x">' + escHtml(x.x) + "</p>" : "") +
+      "</div>").join("");
+  }
+
+  function applyNews(payload, live) {
+    nsItems = (payload.items || []).map(x => ({ t: x.t || x.title, u: x.u || x.link, s: x.s || x.source, tp: x.tp || x.topic, d: x.d || x.published, x: x.x || x.summary }));
+    nsTopics = payload.topics || [...new Set(nsItems.map(x => x.tp))];
+    nsBadge.textContent = live ? "实时" : "快照";
+    nsBadge.classList.toggle("snap", !live);
+    nsNote.textContent = live
+      ? "标题与摘要来自各媒体公开 RSS（共 " + (payload.total || nsItems.length) + " 条已入库，持续累积）；点击标题跳转原文出处阅读。"
+      : "当前为内置快照（" + nsItems.length + " 条）；启动 node server/server.js 后可实时刷新并累积更多条目。";
+    nsRefresh.hidden = !IS_SERVER;
+    renderNews();
+  }
+
+  async function loadNews(force) {
+    if (IS_SERVER) {
+      try {
+        const q = "/api/news?limit=60" + (nsTopic ? "&topic=" + encodeURIComponent(nsTopic) : "") + (force ? "&refresh=1" : "");
+        const r = await fetch(q, { signal: AbortSignal.timeout(9000) });
+        if (r.ok) { applyNews(await r.json(), true); return; }
+      } catch (e) { /* 超时或网络异常 → 落回快照 */ }
+    }
+    if (typeof EV_NEWS_SNAPSHOT !== "undefined" && EV_NEWS_SNAPSHOT) {
+      applyNews(EV_NEWS_SNAPSHOT, false);
+    } else {
+      applyNews({ items: [], topics: [], total: 0 }, false);
+    }
+  }
+
+  nsRefresh.addEventListener("click", () => {
+    nsRefresh.textContent = "刷新中…";
+    loadNews(true).then(() => { nsRefresh.textContent = "刷新"; });
+  });
+
+  loadNews(false);
 })();
 </script>
 </body>

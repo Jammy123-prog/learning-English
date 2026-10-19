@@ -380,6 +380,209 @@ const ARTICLES = [
       "nostalgia":  { pos: "n.",    def: "怀旧；乡愁" },
       "stamina":    { pos: "n.",    def: "耐力；精力" }
     }
+  },
+  {
+    id: "a7", lv: 1, lvName: "低", topic: "经济商业",
+    title: "The Price of a Loaf",
+    titleZh: "一条面包的价格",
+    paras: [
+      "Maria owns a small bakery on Green Street. Every morning at five she turns on the ovens and bakes bread for the neighborhood. But this year, a bag of flour costs almost twice as much as last year, and her rent has gone up too.",
+      "Maria faces a hard choice. If she keeps her prices the same, she may lose money on every loaf. If she raises them, some customers might walk to the supermarket and buy cheaper bread. Every small business owner thinks about this balance every day.",
+      "In the end she decides on a small increase, and she puts a friendly note beside the bread. The note explains why prices changed. Most customers smile and keep coming back, because the bread is fresh and the quality never drops.",
+      "A price, Maria learns, is more than a number. It is a message between a shop and its people. When the message is honest, loyalty grows — even when prices climb."
+    ],
+    gloss: {
+      "bakery":   { pos: "n.",  def: "面包店" },
+      "oven":     { pos: "n.",  def: "烤箱" },
+      "flour":    { pos: "n.",  def: "面粉" },
+      "rent":     { pos: "n.",  def: "租金" },
+      "choice":   { pos: "n.",  def: "选择" },
+      "loaf":     { pos: "n.",  def: "一条（面包）" },
+      "customer": { pos: "n.",  def: "顾客" },
+      "increase": { pos: "n.",  def: "增加；上涨" },
+      "quality":  { pos: "n.",  def: "质量" },
+      "loyalty":  { pos: "n.",  def: "忠诚；忠实" },
+      "honest":   { pos: "adj.", def: "诚实的" }
+    }
+  },
+  {
+    id: "a8", lv: 1, lvName: "低", topic: "政治社会",
+    title: "A Town Decides Together",
+    titleZh: "小镇的集体决定",
+    paras: [
+      "Every spring, the small town of Riverbend holds a town meeting in the school hall. Citizens sit on folding chairs, drink coffee, and decide together how to spend public money. It is democracy at its most basic level.",
+      "This year, the big question is the library. The old building is small, dark, and often crowded. Supporters of a new one say children need quiet space to read and study. Others argue that broken roads and old water pipes should come first, because a town cannot run without them.",
+      "For two hours, neighbors stand and speak, one at a time. The mayor writes each idea on a large whiteboard. Nobody shouts, and nobody leaves early. In the end, they hold a vote by paper ballot, and every opinion counts the same.",
+      "The result is close: sixty-one percent say yes to the library, with a small tax added next year to pay for it. People shake hands even when they lose the vote. Respect, the mayor says, is the habit that keeps a town together."
+    ],
+    gloss: {
+      "citizen":  { pos: "n.",   def: "公民；市民" },
+      "public":   { pos: "adj.", def: "公共的" },
+      "library":  { pos: "n.",   def: "图书馆" },
+      "crowded":  { pos: "adj.", def: "拥挤的" },
+      "mayor":    { pos: "n.",   def: "镇长；市长" },
+      "shout":    { pos: "v.",   def: "喊叫；大声嚷" },
+      "ballot":   { pos: "n.",   def: "选票；投票" },
+      "opinion":  { pos: "n.",   def: "意见；看法" },
+      "tax":      { pos: "n.",   def: "税" },
+      "respect":  { pos: "n.",   def: "尊重" }
+    }
+  },
+  {
+    id: "a9", lv: 2, lvName: "中", topic: "财经商业",
+    title: "When Prices Learn to Climb",
+    titleZh: "当物价开始爬升",
+    paras: [
+      "For three decades, inflation was the ghost that economists mentioned only at parties. Then, in the years after the pandemic, the ghost moved into every shopping basket. Groceries, rent, fuel, second-hand cars: almost everything climbed at once, and a word from the 1970s returned to the front pages.",
+      "Inflation is quietly democratic. At the bakery it means flour; for a student it means rent; for a retiree it means the interest on savings no longer covers a cup of coffee. Yet the mechanism is stubbornly impersonal: too much money chasing too few goods, multiplied by supply shocks that no single country controls.",
+      "Central banks answered in the only language they speak fluently: interest rates. Higher rates make borrowing expensive, cool demand, and slowly pull prices back toward their target. The medicine works, but the pain is uneven — construction projects freeze first, while homeowners with cheap long-term loans barely notice.",
+      "The most dangerous version of the disease is a wage-price spiral. Workers, watching their budget shrink, ask for a higher wage; companies pass the cost into prices; prices then justify the next round of asks. Expectations, once unanchored, become self-fulfilling arithmetic — which is why central bankers talk so much about psychology and so little about bread.",
+      "By the middle of the decade, most economies had settled into an uneasy truce. The stimulus of the recovery years faded, supply chains healed, and recession was avoided more narrowly than anyone admits in public. The lasting lesson is humbler than the textbooks suggest: prices are information, and inflation is what happens when that information turns into noise."
+    ],
+    gloss: {
+      "inflation":    { pos: "n.",   def: "通货膨胀" },
+      "groceries":    { pos: "n.",   def: "食品杂货" },
+      "fuel":         { pos: "n.",   def: "燃料" },
+      "retiree":      { pos: "n.",   def: "退休者" },
+      "interest":     { pos: "n.",   def: "利息" },
+      "savings":      { pos: "n.",   def: "储蓄" },
+      "wage":         { pos: "n.",   def: "工资" },
+      "spiral":       { pos: "n.",   def: "螺旋式上升" },
+      "budget":       { pos: "n.",   def: "预算" },
+      "expectation":  { pos: "n.",   def: "预期" },
+      "stimulus":     { pos: "n.",   def: "经济刺激（政策）" },
+      "recession":    { pos: "n.",   def: "经济衰退" }
+    }
+  },
+  {
+    id: "a10", lv: 2, lvName: "中", topic: "科技健康",
+    title: "The Doctor's New Assistant",
+    titleZh: "医生的新助手",
+    paras: [
+      "The patient arrives with a cough that has lasted three weeks. Nothing in the basic examination explains it. Forty years ago, the diagnosis would rest on a physician's memory and a lucky guess. Today, a chest scan is read twice — once by a radiologist, and once by an algorithm trained on millions of similar images.",
+      "Medical AI is not a robot with a white coat. It is pattern-recognition software that learns from enormous datasets of scans, test results, and recorded outcomes. Its gift is consistency: it does not get tired at hour eleven of a shift, and its memory never quietly deletes a rare symptom it saw once in training.",
+      "The results, in narrow tasks, are impressive. Some systems now detect early lung tumors, diabetic eye disease, and hidden fractures better than tired humans do. In screening programs, this matters enormously, because the patients who benefit most are exactly the ones no specialist has time to study carefully.",
+      "Yet the limits are as real as the promise. An algorithm trained in one hospital can misread patients from another, because machines inherit the bias of their data. Privacy remains unresolved: a dataset of symptoms is also a database of people. And a confident prediction is not a conversation — a doctor must still sit with the patient and explain what the machine cannot.",
+      "The likeliest future is therefore a partnership rather than a takeover. The machine flags the shadow that the eye might miss; the physician weighs it against a life, a history, and a family waiting outside. Medicine, after all, is not only knowing what the pattern is. It is knowing what it means for this person, on this day, in this room."
+    ],
+    gloss: {
+      "diagnosis":    { pos: "n.",   def: "诊断" },
+      "physician":    { pos: "n.",   def: "内科医生" },
+      "scan":         { pos: "n./v.", def: "扫描；扫描检查" },
+      "radiologist":  { pos: "n.",   def: "放射科医生" },
+      "algorithm":    { pos: "n.",   def: "算法" },
+      "dataset":      { pos: "n.",   def: "数据集" },
+      "symptom":      { pos: "n.",   def: "症状" },
+      "detect":       { pos: "v.",   def: "检测；发现" },
+      "tumor":        { pos: "n.",   def: "肿瘤" },
+      "screening":    { pos: "n.",   def: "筛查" },
+      "bias":         { pos: "n.",   def: "偏差；偏见" },
+      "privacy":      { pos: "n.",   def: "隐私" }
+    }
+  },
+  {
+    id: "a11", lv: 2, lvName: "中", topic: "政治社会",
+    title: "Cities at the Water's Edge",
+    titleZh: "临水的城市",
+    paras: [
+      "Every serious plan to fight climate change is written in two halves: the half that tries to stop it, and the half that learns to live with it. The first half belongs to treaties and carbon targets. The second half belongs to cities — especially the coastal ones, where the water is already voting with its feet.",
+      "Jakarta is sinking into the Java Sea; Venice is learning to close its gates against the tide. In richer cities, the answer has been engineering: seawalls, higher pumps, smarter drainage that sends storm water back where it came from. In poorer ones, the answer has too often been moving — quietly, one flooded street at a time.",
+      "Adaptation has a budget problem. A seawall is concrete, visible, and politically easy to celebrate at a ribbon-cutting. Quietly restoring wetlands, or helping a low-lying neighborhood relocate before the disaster instead of after it, wins no ceremonies and few votes. Mayors who plan for a flood that has not yet arrived are often punished at the ballot box by residents who prefer promises they can spend now.",
+      "Insurance is becoming the quiet referee of the century. When private insurers pull back from a coastline, they send a price signal that no summit statement can match. Mortgages get shorter, building stops, and the market begins what politics could not decide: a slow, negotiated retreat from the riskiest ground.",
+      "None of this is surrender, engineers insist. It is the difference between defending every inch and choosing which inches to defend. The cities that thrive will be the ones that treat water as a citizen with rights — consulted in every plan, given lanes to move through, and never entirely walled out."
+    ],
+    gloss: {
+      "coastal":     { pos: "adj.", def: "沿海的" },
+      "flood":       { pos: "n./v.", def: "洪水；淹没" },
+      "seawall":     { pos: "n.",   def: "海堤" },
+      "drainage":    { pos: "n.",   def: "排水系统" },
+      "carbon":      { pos: "n.",   def: "碳" },
+      "summit":      { pos: "n.",   def: "峰会" },
+      "resident":    { pos: "n.",   def: "居民" },
+      "ballot":      { pos: "n.",   def: "投票" },
+      "insurance":   { pos: "n.",   def: "保险" },
+      "mortgage":    { pos: "n.",   def: "按揭贷款" },
+      "retreat":     { pos: "n./v.", def: "撤退；后撤" },
+      "negotiated":  { pos: "adj.", def: "协商达成的" }
+    }
+  },
+  {
+    id: "a12", lv: 3, lvName: "高", topic: "财经商业",
+    title: "The Quiet Power of Central Banks",
+    titleZh: "中央银行的静默权力",
+    paras: [
+      "Of the institutions that govern modern life, few are less democratic and more tolerated than the central bank. Its decisions are made by unelected committees, argued in a jargon of yields and transmission channels, and yet every mortgage, every pay cheque, and every government budget ultimately bends around them. The paradox deserves a closer look, because it was a deliberate design, not an accident of history.",
+      "The logic is credibility. A politician who controls the printing press faces a permanent temptation: cheap money before an election, inflated debts away afterward. Granting the press to an independent body with a narrow mandate — keep prices stable, and nothing else — is society's way of tying its own hands to the mast. The anchor only holds, however, as long as markets believe the knot is real.",
+      "Consider what a rate decision actually transmits. The bank lifts its policy rate by a quarter point; within minutes, government yields reprice, within days, mortgages and corporate loans follow, within months, hiring slows and consumers rediscover the virtues of saving. The chain has weak links — savings glut, cheap foreign funding, lenders with short memories — but it is the only chain the modern economy has.",
+      "The years after the pandemic stress-tested the design as never before. Inflation, long assumed extinct, returned with violence; the banks responded with the fastest tightening in four decades, then held the line through a bond-market volatility scare and a banking tremor or two. Disinflation followed, slower than hoped, faster than feared — and the recession that every forecaster promised politely declined to appear.",
+      "Critics on both flanks see arrogance: on one side, unelected economists imposing unemployment on the poor; on the other, cautious clerks who moved too late and left liquidity sloshing for years. Both critiques contain truth. The defense is quieter: over the long run, the countries that kept their monetary institutions independent have, on the whole, suffered less. The price of the quiet power is that it must forever re-earn the silence it works in."
+    ],
+    gloss: {
+      "institution":   { pos: "n.",   def: "机构；制度" },
+      "credibility":   { pos: "n.",   def: "公信力；可信度" },
+      "mandate":       { pos: "n.",   def: "授权；职责范围" },
+      "yield":         { pos: "n.",   def: "收益率" },
+      "transmission":  { pos: "n.",   def: "传导（机制）" },
+      "volatility":    { pos: "n.",   def: "剧烈波动" },
+      "disinflation":  { pos: "n.",   def: "通胀回落" },
+      "liquidity":     { pos: "n.",   def: "流动性" },
+      "forecaster":    { pos: "n.",   def: "预测者" },
+      "arrogance":     { pos: "n.",   def: "傲慢" },
+      "monetary":      { pos: "adj.", def: "货币的" },
+      "independent":   { pos: "adj.", def: "独立的" }
+    }
+  },
+  {
+    id: "a13", lv: 3, lvName: "高", topic: "政治社会",
+    title: "The Geography of Everything",
+    titleZh: "万物的地理学",
+    paras: [
+      "The pandemic taught the world an uncomfortable geography lesson: the map of manufacturing and the map of politics are the same map. When a single chokepoint — a canal, a port, a Taiwanese fabrication plant — stumbles, the backlog travels at the speed of container freight, which is to say, slowly and then all at once.",
+      "The decade that followed turned that lesson into doctrine. Washington rediscovered industrial policy; Brussels wrote carbon tariffs; Beijing doubled down on self-reliance in chips and grain. Every capital now repeats the same word, resilience, and every boardroom translates it the same way: diversify before you are diversified by force.",
+      "The instrument of choice is the subsidy. Chip factories are rising in Arizona and Dresden; battery plants multiply across Ontario and Guangdong like mushrooms after rain. The sums are enormous, and the economics are questionable — no subsidy yet has repealed the law of comparative advantage. What the money really buys is not efficiency but optionality: the ability to keep factories running if a strait closes or a sanction lands.",
+      "Weapons and supply chains are now dialects of the same language. An embargo on advanced machinery, a blacklist at a customs desk, an export control written in Washington and enforced in Tokyo: these move more goods than most tariffs ever did. The tit-for-tat is quiet, procedural, and utterly ruthless; rare earths, gallium, lithography — each restriction answers another, and each answer redrew somebody's investment plan.",
+      "The consumer pays for the doctrine at the till. Duplicated supply chains are insurance premiums made physical: slightly dearer phones, slightly slower ships, slightly shorter product cycles. Perhaps that is the honest price of a decade in which geopolitics returned from the seminar room to the shipping lane. The 1990s dream of a single flat world is over; what replaces it is a patchwork — resilient, regional, and permanently prepared for weather it hopes never arrives."
+    ],
+    gloss: {
+      "chokepoint":    { pos: "n.",   def: "咽喉要道；瓶颈节点" },
+      "backlog":       { pos: "n.",   def: "积压；待办积压" },
+      "freight":       { pos: "n.",   def: "货运；运费" },
+      "doctrine":      { pos: "n.",   def: "信条；政策准则" },
+      "resilience":    { pos: "n.",   def: "韧性；抗冲击能力" },
+      "subsidy":       { pos: "n.",   def: "补贴" },
+      "strait":        { pos: "n.",   def: "海峡" },
+      "sanction":      { pos: "n.",   def: "制裁" },
+      "embargo":       { pos: "n.",   def: "禁运" },
+      "ruthless":      { pos: "adj.", def: "无情的" },
+      "till":          { pos: "n.",   def: "收银台" },
+      "patchwork":     { pos: "n.",   def: "拼凑之物；拼图格局" }
+    }
+  },
+  {
+    id: "a14", lv: 3, lvName: "高", topic: "科技健康",
+    title: "Building a Longer Healthspan",
+    titleZh: "造一个更长的健康寿命",
+    paras: [
+      "For most of history, the ambition of medicine was simple: do not die. Then the twentieth century succeeded so thoroughly that the ambition had to be rewritten. Today the frontier is not lifespan but healthspan — the number of years a body spends upright, independent, and useful to its owner, rather than merely existing.",
+      "The arithmetic of aging has a brutal shape. Chronic disease now consumes the majority of health spending in every rich country, and its bill grows on a demographic schedule that no parliament can amend. Dementia alone threatens to become the defining expense of the century, which is why prevention — unglamorous, cheap, and chronically underfunded — has quietly become the most valuable word in public health.",
+      "The evidence, as far as it goes, is almost embarrassingly consistent. Blood pressure controlled in middle age; muscle kept through resistance training; glucose managed before it becomes a diagnosis; a sleep schedule treated as seriously as a pension. None of it is patentable, and precisely therefore almost none of it is pushed. The pharmaceutical industry, quite rationally, pursues the compressible end of the curve: drugs that delay the frailty of the final years, trials measured in biomarkers rather than birthdays.",
+      "Biology, meanwhile, keeps offering hints of deeper levers. Cellular reprogramming has made old mice look, briefly, young; senolytic drugs clear the cells that refuse to die properly; caloric restriction remains the most reliable way to extend life in everything from worms to monkeys. Translation to humans is slow, expensive, and littered with failures — but for the first time, aging itself is being studied as a mechanism with parts, rather than as fate.",
+      "The wise position is neither enthusiasm nor dismissal. Whatever the laboratories deliver, the boring interventions will still carry most of the weight: a population that walks, sleeps, and keeps its blood pressure polite will out-live any pill that negligence can squander. Longevity science may yet bend the curve. Until it does, the curve is bent one ordinary Tuesday at a time."
+    ],
+    gloss: {
+      "healthspan":   { pos: "n.",   def: "健康寿命（无重大疾病年限）" },
+      "chronic":      { pos: "adj.", def: "慢性的；长期的" },
+      "dementia":     { pos: "n.",   def: "痴呆" },
+      "prevention":   { pos: "n.",   def: "预防" },
+      "underfunded":  { pos: "adj.", def: "资金不足的" },
+      "glucose":      { pos: "n.",   def: "葡萄糖" },
+      "pharmaceutical": { pos: "adj./n.", def: "制药的；药品" },
+      "biomarker":    { pos: "n.",   def: "生物标志物" },
+      "frailty":      { pos: "n.",   def: "衰弱；脆弱" },
+      "intervention": { pos: "n.",   def: "干预措施" },
+      "squander":     { pos: "v.",   def: "浪费；挥霍" },
+      "longevity":    { pos: "n.",   def: "长寿；寿命" }
+    }
   }
 ];
 

@@ -33,6 +33,18 @@
     <div class="a-picker" id="a-picker"></div>
   </section>
 
+  <!-- 全库检索：100 篇文章（标题/主题/正文）+ 全部词库（词形/释义），支持拼写模糊 -->
+  <section class="search-panel rv">
+    <div class="sp-box">
+      <svg class="sp-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="r-search" type="search" placeholder="检索整个文库与词库：标题 / 主题 / 正文 / 单词释义……支持拼写模糊与中文" autocomplete="off" spellcheck="false" aria-label="检索文库与词库">
+      <button class="sp-clear" id="rsp-clear" hidden>清空</button>
+    </div>
+    <p class="sp-meta" id="rsp-meta" hidden></p>
+    <div class="sp-results" id="rsp-results" hidden></div>
+    <div class="sp-detail" id="rsp-detail" hidden></div>
+  </section>
+
   <div class="read-grid rv">
     <div class="read-main">
       <article class="bezel"><div class="core article" id="article"></div></article>
@@ -118,6 +130,7 @@
 
 <script src="js/icons.js"></script>
 <script src="js/data.js"></script>
+<script src="js/articles-ext.js"></script>
 <script src="js/api.js"></script>
 <script src="js/srs.js"></script>
 <script src="js/settings.js"></script>
@@ -309,6 +322,181 @@
     Stats.touch();
   });
 
+  /* ================= 全库检索：文章（标题/主题/正文）+ 词库（词形/释义） ================= */
+  const rIn = document.getElementById("r-search");
+  const rMeta = document.getElementById("rsp-meta");
+  const rRes = document.getElementById("rsp-results");
+  const rDet = document.getElementById("rsp-detail");
+  const rClr = document.getElementById("rsp-clear");
+
+  /* 文章索引：标题 / 中文题名 / 主题 / 正文（小写拼接缓存） */
+  const ART_IDX = ARTICLES.map(a => ({
+    a, tl: a.title.toLowerCase(), zh: a.titleZh || "", tp: (a.topic || "").toLowerCase(), txt: a.paras.join(" ").toLowerCase()
+  }));
+  /* 词库索引：精选 160 详解 ∪ DICT 全部词条（含各文章术语） */
+  const DICT_IDX = (() => {
+    const map = new Map();
+    WORDS.forEach(x => map.set(x.w.toLowerCase(), { w: x.w, ipa: x.ipa || "", pos: x.pos || "", def: x.def, ex: x.ex || "", exZh: x.exZh || "", cur: true }));
+    Object.keys(DICT).forEach(k => { if (!map.has(k)) map.set(k, { w: k, ipa: DICT[k].ipa || "", pos: DICT[k].pos || "", def: DICT[k].def || "", ex: "", exZh: "", cur: false }); });
+    return [...map.values()];
+  })();
+
+  /* 五级模糊打分：精确 > 前缀 > 包含 > 子序列 > 有界编辑距离 */
+  function subseq(q, h) {
+    let i = 0;
+    for (const ch of h) { if (ch === q[i] && ++i === q.length) return true; }
+    return false;
+  }
+  function lev2(a, b) {
+    if (Math.abs(a.length - b.length) > 2) return -1;
+    let prev = new Array(b.length + 1), cur = new Array(b.length + 1);
+    for (let j = 0; j <= b.length; j++) prev[j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      cur[0] = i;
+      let best = cur[0];
+      for (let j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (cur[j] < best) best = cur[j];
+      }
+      if (best > 2) return -1;
+      const t = prev; prev = cur; cur = t;
+    }
+    return prev[b.length] > 2 ? -1 : prev[b.length];
+  }
+  function scoreOf(q, h) {
+    if (h === q) return 100;
+    if (h.startsWith(q)) return 90 - Math.min(10, h.length - q.length);
+    if (h.includes(q)) return 70 - (h.length - q.length);
+    if (q.length >= 2 && subseq(q, h)) return 50 - Math.min(10, h.length - q.length);
+    if (q.length >= 3) { const d = lev2(q, h); if (d >= 0) return 46 - d * 8; }
+    return 0;
+  }
+
+  /* 正文命中摘要：截取上下文并高亮 */
+  function snippet(txt, q) {
+    const i = txt.indexOf(q);
+    if (i < 0) return "";
+    const s = Math.max(0, i - 44), e = Math.min(txt.length, i + q.length + 72);
+    return (s > 0 ? "…" : "") + escHtml(txt.slice(s, i)) +
+      '<mark class="rs-mark">' + escHtml(q) + "</mark>" +
+      escHtml(txt.slice(i + q.length, e)) + (e < txt.length ? "…" : "");
+  }
+  const LV_CHIP = { 1: '<span class="rs-lv low">低</span>', 2: '<span class="rs-lv mid">中</span>', 3: '<span class="rs-lv high">高</span>' };
+
+  function openArticle(a) {
+    lv = a.lv;
+    const list = listOf(lv);
+    aIdx = Math.max(0, list.findIndex(x => x.id === a.id));
+    TTS.stop();
+    rRes.hidden = true; rMeta.hidden = true;
+    render();
+    artEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    toast("已切换到「" + a.titleZh + "」");
+  }
+
+  /* 词条详情卡（检索结果点击展开；返回按钮回到结果列表） */
+  let rLast = null;
+  function showWDetail(w) {
+    rLast = w;
+    rRes.hidden = true; rMeta.hidden = true; rDet.hidden = false;
+    const ipa = w.ipa ? '<span class="sd-ipa">' + escHtml(w.ipa) + "</span>" : "";
+    rDet.innerHTML = `
+      <div class="sd-head">
+        <span class="sd-w">${escHtml(w.w)}</span>${ipa}
+        <span class="sr-lv">${w.cur ? "精选详解" : "词库"}</span>
+        <span class="sd-acts">
+          <button class="dt-btn" data-act="say" data-word="${escHtml(w.w)}">${ICONS.speaker}<span>发音</span></button>
+          <button class="dt-btn" data-act="add" data-word="${escHtml(w.w)}">${ICONS.plus}<span>生词本</span></button>
+        </span>
+      </div>
+      <div class="sd-def"><span class="sd-pos">${escHtml(w.pos || "n.")}</span>${escHtml(w.def)}</div>
+      ${w.ex ? '<div class="sd-ex">' + escHtml(w.ex) + '<div class="zh">' + escHtml(w.exZh || "") + "</div></div>" : ""}
+      <button class="rs-back" id="rs-back">← 返回检索结果</button>`;
+    rDet.querySelectorAll("[data-act]").forEach(b =>
+      b.addEventListener("click", () => {
+        if (b.dataset.act === "say") {
+          if (!TTS.speak(b.dataset.word)) toast("当前浏览器不支持语音合成");
+        } else {
+          const hit = DICT[b.dataset.word.toLowerCase()] || (w.cur ? WORDS.find(x => x.w.toLowerCase() === b.dataset.word.toLowerCase()) : null);
+          const info = hit ? { w: w.w, ipa: hit.ipa || "", pos: hit.pos, def: hit.def, ex: "", exZh: "", lv: "阅读" } : null;
+          const added = SRS.addWord(b.dataset.word.toLowerCase(), info);
+          toast(added ? "已加入生词本，明日开始复习" : "已在生词本中");
+        }
+      }));
+    document.getElementById("rs-back").addEventListener("click", () => {
+      rDet.hidden = true;
+      if (rLast) { rRes.hidden = false; rMeta.hidden = false; }
+    });
+  }
+
+  let rTimer = null;
+  function doSearch() {
+    const q = rIn.value.trim().toLowerCase();
+    rClr.hidden = !q;
+    rDet.hidden = true;
+    if (q.length < 2) { rRes.hidden = true; rMeta.hidden = true; return; }
+    const cjk = /[\u4e00-\u9fff]/.test(q);
+
+    /* 文章：标题模糊 > 正文包含 > 中文题名/主题 */
+    const arts = [];
+    for (const e of ART_IDX) {
+      let s = 0;
+      if (!cjk) {
+        s = scoreOf(q, e.tl);
+        if (!s && e.txt.includes(q)) s = 45;
+      }
+      if (!s && (e.zh.includes(q) || e.tp.includes(q))) s = 40;
+      if (s > 0) arts.push({ e, s });
+    }
+    arts.sort((x, y) => y.s - x.s);
+
+    /* 词条：词形模糊 > 中文释义包含 */
+    const words = [];
+    for (const w of DICT_IDX) {
+      let s = cjk ? 0 : scoreOf(q, w.w.toLowerCase());
+      if (!s && (w.def.includes(q) || (w.exZh || "").includes(q))) s = 40;
+      if (s > 0) words.push({ w, s });
+    }
+    words.sort((a, b) => b.s - a.s || a.w.w.localeCompare(b.w.w));
+
+    const topA = arts.slice(0, 12), topW = words.slice(0, 18);
+    rMeta.hidden = false;
+    rMeta.textContent = topA.length || topW.length
+      ? "文库命中 " + arts.length + " 篇（显示前 " + topA.length + "） · 词库命中 " + words.length + " 词（显示前 " + topW.length + "，共索引 " + DICT_IDX.length + " 词条）"
+      : "没有相近的结果，试试更短或更常见的拼写（如 cran、提单）";
+    if (!topA.length && !topW.length) { rRes.hidden = true; return; }
+    rRes.hidden = false;
+
+    let html = "";
+    if (topA.length) {
+      html += '<div class="rs-group">文章 · ' + topA.length + "</div>" + topA.map((x, i) => {
+        const a = x.e.a;
+        const sn = (!cjk && x.e.txt.includes(q)) ? '<p class="rs-snip">' + snippet(x.e.txt, q) + "</p>" : "";
+        return '<button class="rs-art" data-ai="' + i + '">' +
+          '<span class="rs-meta">' + LV_CHIP[a.lv] + '<span class="rs-topic">' + escHtml(a.topic) + "</span></span>" +
+          '<span class="rs-tt">' + escHtml(a.title) + '<i class="rs-zh">' + escHtml(a.titleZh) + "</i></span>" +
+          sn + "</button>";
+      }).join("");
+    }
+    if (topW.length) {
+      html += '<div class="rs-group">词条 · ' + topW.length + "</div>" + topW.map((x, i) =>
+        '<button class="sr-row rs-wrow" data-wi="' + i + '">' +
+          '<span class="sr-w">' + escHtml(x.w.w) + "</span>" +
+          (x.w.cur ? '<span class="sr-tag">详解</span>' : "") +
+          '<span class="sr-prev">' + escHtml(x.w.pos ? x.w.pos + " " : "") + escHtml(x.w.def) + "</span>" +
+        "</button>").join("");
+    }
+    rRes.innerHTML = html;
+
+    rRes.querySelectorAll(".rs-art").forEach(b =>
+      b.addEventListener("click", () => openArticle(topA[+b.dataset.ai].e.a)));
+    rRes.querySelectorAll(".rs-wrow").forEach(b =>
+      b.addEventListener("click", () => showWDetail(topW[+b.dataset.wi].w)));
+  }
+
+  rIn.addEventListener("input", () => { clearTimeout(rTimer); rTimer = setTimeout(doSearch, 160); });
+  rClr.addEventListener("click", () => { rIn.value = ""; doSearch(); rIn.focus(); });
+
   render();
 
   /* ================= 新闻速览（多源：CGTN RSS + China Daily；元数据 + 可精读全文） ================= */
@@ -360,9 +548,9 @@
     nsBadge.textContent = live ? "实时" : "快照";
     nsBadge.classList.toggle("snap", !live);
     nsNote.textContent = live
-      ? "来源：CGTN 八版块 RSS 与 China Daily 七频道（共 " + (payload.total || nsItems.length) +
+      ? "来源：CGTN 八版块、China Daily 七频道与 gCaptain/Splash247/Hellenic/Loadstar/Container News 五大港航物流媒体（共 " + (payload.total || nsItems.length) +
         " 条已入库，" + (payload.readable || 0) + " 条可站内精读，持续累积）；「精读」站内阅读，或点标题跳原文。"
-      : "当前为内置快照（" + nsItems.length + " 条）；启动 node server/server.js 后可实时刷新、抓取 China Daily 并精读全文。";
+      : "当前为内置快照（" + nsItems.length + " 条）；启动 node server/server.js 后可实时刷新、抓取 China Daily 与港航媒体并精读全文。";
     nsRefresh.hidden = !IS_SERVER;
     renderNews();
   }

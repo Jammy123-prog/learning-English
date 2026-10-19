@@ -217,7 +217,13 @@ const NEWS_FEEDS = [
   { url: "https://www.cgtn.com/subscribe/rss/section/opinion.xml",  topic: "观点·评论", source: "CGTN" },
   { url: "https://www.cgtn.com/subscribe/rss/section/nature.xml",   topic: "自然·环保", source: "CGTN" },
   { url: "https://www.cgtn.com/subscribe/rss/section/travel.xml",   topic: "旅游·人文", source: "CGTN" },
-  { url: "https://www.cgtn.com/subscribe/rss/section/sports.xml",   topic: "体育", source: "CGTN" }
+  { url: "https://www.cgtn.com/subscribe/rss/section/sports.xml",   topic: "体育", source: "CGTN" },
+  /* v1.4 国际港航/物流媒体（摘要入库；文章页抓取正文后可站内精读） */
+  { url: "https://gcaptain.com/feed/",                         topic: "港航·海事业",   source: "gCaptain" },
+  { url: "https://splash247.com/feed/",                        topic: "港航·海运",     source: "Splash247" },
+  { url: "https://www.hellenicshippingnews.com/feed/",         topic: "港航·航运日报", source: "Hellenic" },
+  { url: "https://theloadstar.com/feed/",                      topic: "物流·供应链",   source: "The Loadstar" },
+  { url: "https://container-news.com/feed/",                   topic: "港机·集装箱业", source: "Container News" }
 ];
 const CD_SECTIONS = [
   { path: "/china",    topic: "中国·中国日报" },
@@ -233,6 +239,26 @@ const CD_PER_SECTION = 8;       /* 每频道每轮最多抓取的新文章数（
 const NEWS_TTL = 30 * 60 * 1000;
 const NEWS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36";
 let newsStamp = 0, newsBusy = false;
+
+/* v1.4 港航媒体文章页抓取：这些源的 RSS 只有摘要，正文须访问文章页提取。
+   通用 WordPress 风格提取（<p> 段落 + 长度/词数过滤导航噪声），失败仅保留摘要。 */
+const WP_ARTICLE_SOURCES = new Set(["gCaptain", "Splash247", "Hellenic", "The Loadstar", "Container News"]);
+const WP_FETCH_MAX = 6;         /* 每轮最多抓正文的新文章数（对源友好） */
+const WP_FAIL_BACKOFF = 2 * 60 * 60 * 1000;   /* 解析失败条目 2 小时内不再重试（防付费墙/空正文反复占用名额） */
+const wpFailMark = new Map();   /* link → 最近失败时间戳 */
+
+function parseWpArticle(html) {
+  const ps = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)]
+    .map(m => htmlClean(m[1].replace(/<[^>]+>/g, " ")))
+    .filter(x => {
+      if (x.length < 110 || x.length > 900) return false;
+      const words = x.split(/\s+/).length;
+      if (words < 18) return false;
+      return !/^(Advertise|Subscribe|Jobs|Forum|Share|Follow|Related|Tagged|Photo|Image)/i.test(x);
+    });
+  if (ps.length < 3) return null;
+  return ps.slice(0, 30);
+}
 
 function xmlClean(s) {
   return String(s || "")
@@ -287,6 +313,7 @@ async function refreshNews(force) {
   if (!force && Date.now() - newsStamp < NEWS_TTL) return;
   newsBusy = true;
   let added = 0, cdAdded = 0;
+  const wpPending = [];   /* v1.4：港航媒体无全文条目（待抓文章页正文） */
   try {
     /* ---- ① CGTN RSS（含全文） ---- */
     const results = await Promise.allSettled(NEWS_FEEDS.map(async f => ({ f, xml: await httpGet(f.url, 6000) })));
@@ -313,9 +340,36 @@ async function refreshNews(force) {
         const cem = b.match(/<content:encoded>([\s\S]*?)<\/content:encoded>/i);
         const paras = cem ? contentToParas(cem[1]) : null;
         if (upsert.run(link, title, f.source, f.topic, pub, pick("description").slice(0, 200), paras ? JSON.stringify(paras) : null).changes > 0) added++;
+        if (!paras && WP_ARTICLE_SOURCES.has(f.source)) wpPending.push(link);
       }
     }
     db.exec("COMMIT");
+
+    /* ---- ①b 港航媒体文章页 → 提取正文（每轮限流，对源友好） ---- */
+    if (wpPending.length) {
+      try {
+        const ph = "(" + wpPending.map(() => "?").join(",") + ")";
+        const rows = db.prepare("SELECT link, content FROM news_item WHERE link IN " + ph).all(...wpPending);
+        const hasC = new Set(rows.filter(r => r.content && r.content.length > 10).map(r => r.link));
+        const now = Date.now();
+        const tasks = wpPending.filter(u => !hasC.has(u) && !(wpFailMark.get(u) > now - WP_FAIL_BACKOFF)).slice(0, WP_FETCH_MAX);
+        console.log("[ev] WP 抓取：待补 " + wpPending.length + " 条，本轮任务 " + tasks.length + " 条");
+        if (tasks.length) {
+          const arts = await Promise.allSettled(tasks.map(u => httpGet(u, 9000)));
+          let wpAdded = 0, wpFail = 0;
+          db.exec("BEGIN");
+          const upd = db.prepare("UPDATE news_item SET content = ? WHERE link = ?");
+          arts.forEach((a, i) => {
+            if (a.status !== "fulfilled") { wpFailMark.set(tasks[i], Date.now()); wpFail++; return; }
+            const paras = parseWpArticle(a.value);
+            if (paras) { upd.run(JSON.stringify(paras), tasks[i]); wpAdded++; }
+            else { wpFailMark.set(tasks[i], Date.now()); wpFail++; }
+          });
+          db.exec("COMMIT");
+          console.log("[ev] 港航媒体正文抓取：" + wpAdded + " 篇可站内精读" + (wpFail ? "（" + wpFail + " 篇失败，2 小时后重试）" : ""));
+        }
+      } catch (e) { console.log("[ev] WP 抓取异常：" + e.message); }
+    }
 
     /* ---- ② China Daily：频道页发现新文章 → 提取正文 ---- */
     for (const sec of CD_SECTIONS) {

@@ -1337,3 +1337,48 @@ html.js .rv.in { opacity: 1; transform: none; }
   .nsr-panel { animation: none; }
   .ns-read, .nsr-close { transition: none; }
 }
+
+/* ---------- 阅读全库检索（v1.4：文章 + 词库） ---------- */
+.search-panel { margin: -6px 0 22px; }
+.rs-group {
+  margin: 14px 4px 8px; font: 700 13px var(--font-display);
+  color: var(--primary); letter-spacing: .5px;
+  display: flex; align-items: center; gap: 8px;
+}
+.rs-group::after { content: ""; flex: 1; height: 2px; border-radius: 2px; background: var(--blue-a); }
+.rs-art {
+  display: flex; flex-direction: column; gap: 5px; text-align: left;
+  padding: 12px 16px; cursor: pointer;
+  background: #fff; border: var(--clay-border); border-radius: var(--r-md);
+  box-shadow: var(--clay-in);
+  transition: transform .18s var(--ease-bounce);
+  font-family: var(--font-body);
+}
+.rs-art:hover { transform: translateY(-2px); }
+.rs-meta { display: flex; align-items: center; gap: 8px; }
+.rs-lv {
+  flex: none; font-size: 10.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px;
+  color: #fff; border: 1.5px solid rgba(255, 255, 255, .9);
+}
+.rs-lv.low  { background: #34D399; }
+.rs-lv.mid  { background: #FBBF24; }
+.rs-lv.high { background: #F472B6; }
+.rs-topic { font-size: 11px; font-weight: 800; color: var(--ink-mut); }
+.rs-tt { font: 600 15.5px var(--font-display); color: var(--ink-deep); }
+.rs-zh { margin-left: 10px; font: 600 13px var(--font-body); font-style: normal; color: var(--ink-mut); }
+.rs-snip { font-size: 12.5px; line-height: 1.6; color: var(--ink-mut); font-weight: 600; }
+.rs-mark { background: var(--yellow-a); color: var(--ink-deep); font-weight: 800; padding: 0 3px; border-radius: 5px; }
+.rs-wrow .sr-w { min-width: 92px; }
+.rs-back {
+  margin-top: 14px; border: none; cursor: pointer;
+  font: 700 12.5px var(--font-body); color: var(--ink-mut);
+  background: var(--lilac-a); padding: 7px 14px; border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, .9);
+  box-shadow: 2px 3px 6px rgba(30, 27, 75, .10);
+  transition: transform .18s var(--ease-bounce), background .18s var(--ease-soft);
+}
+.rs-back:hover { transform: translateY(-1px); background: var(--lilac-b); }
+@media (max-width: 900px) {
+  .rs-wrow .sr-w { min-width: 72px; }
+  .rs-zh { display: block; margin: 2px 0 0; }
+}

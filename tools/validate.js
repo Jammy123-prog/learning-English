@@ -5,9 +5,12 @@ const fs = require("fs");
 const path = require("path");
 const root = path.join(__dirname, "..");
 const code = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
+/* v1.4：文章扩充层（articles-ext.js 在 data.js 之后执行，把 EV_ARTICLES_EXT 合并进 ARTICLES/DICT） */
+const extPath = path.join(root, "js", "articles-ext.js");
+const extCode = fs.existsSync(extPath) ? fs.readFileSync(extPath, "utf8") : "";
 /* data.js 为浏览器全局脚本，用 Function 提取其顶层常量 */
 const mod = new Function(
-  code + "\n;return {WORDS:WORDS,ARTICLES:ARTICLES,DAILY_FIXED:DAILY_FIXED,BANK:BANK,DICT:DICT,NEW_PER_DAY:NEW_PER_DAY};"
+  code + "\n" + extCode + "\n;return {WORDS:WORDS,ARTICLES:ARTICLES,DAILY_FIXED:DAILY_FIXED,BANK:BANK,DICT:DICT,NEW_PER_DAY:NEW_PER_DAY};"
 )();
 const WORDS = mod.WORDS, ARTICLES = mod.ARTICLES, DAILY_FIXED = mod.DAILY_FIXED, BANK = mod.BANK, DICT = mod.DICT;
 

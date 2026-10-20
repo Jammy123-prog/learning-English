@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /* ============================================================
-   EverWord API & 静态服务器 v1.5.0（零依赖）
+   EverWord API & 静态服务器 v1.6.0（零依赖）
    运行：node server/server.js   （需 Node.js ≥ 22）
    能力：
    - 静态托管前端（http://localhost:8787）
    - 账号：POST /api/register  POST /api/login（scrypt 口令散列 + HMAC-SHA256 令牌，30 天）
    - 云同步：GET/PUT /api/state（复习卡片 / 统计 / 每日进度 / 设置，最后写入胜出）
+   - 管理员：GET /api/admin/overview（账号总览）  GET /api/admin/users（账号清单 + 学习情况）
+             首个注册用户自动成为管理员，或 EV_ADMIN=用户名 指定
    - 词库目录：GET /api/words?level=CET-4|CET-6|TEM-8|IELTS（SQLite 种子库）
               GET /api/words?q=xxx&limit=50（全库模糊检索：精确/前缀/包含/子序列/编辑距离）
    - 新闻速览：GET /api/news?topic=&limit=&refresh=1（懒刷新 30 分钟）
@@ -26,7 +28,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 
-const VERSION = "1.5.0";
+const VERSION = "1.6.0";
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "..", "data");
 const DB_FILE = path.join(DATA_DIR, "everword.db");
@@ -143,6 +145,18 @@ function seedCatalog() {
   console.log("[ev] 词库目录已灌入 SQLite：" + n + " 词目（CET-4/CET-6/IELTS 去重 " + map.size + "）");
 }
 seedCatalog();
+
+/* v1.6 迁移：账号角色（admin/user）与最近活跃时间；旧库自动补列（已存在则忽略） */
+try { db.exec("ALTER TABLE user ADD COLUMN role TEXT NOT NULL DEFAULT 'user'"); } catch (e) {}
+try { db.exec("ALTER TABLE user ADD COLUMN last_seen TEXT"); } catch (e) {}
+/* 管理员初始化：首个注册用户自动成为管理员；亦可用 EV_ADMIN=用户名 指定提升 */
+try {
+  if (!db.prepare("SELECT COUNT(*) AS c FROM user WHERE role = 'admin'").get().c) {
+    const first = db.prepare("SELECT id FROM user ORDER BY id LIMIT 1").get();
+    if (first) db.prepare("UPDATE user SET role = 'admin' WHERE id = ?").run(first.id);
+  }
+  if (process.env.EV_ADMIN) db.prepare("UPDATE user SET role = 'admin' WHERE name = ?").run(process.env.EV_ADMIN);
+} catch (e) {}
 
 /* ---------------- 口令与令牌 ---------------- */
 function hashPass(pw) {
@@ -511,20 +525,22 @@ async function handleApi(req, res, url, body) {
     if (typeof password !== "string" || password.length < 6 || password.length > 128) return bad(res, "密码长度需在 6-128 位之间");
     const dup = db.prepare("SELECT id FROM user WHERE name = ?").get(name);
     if (dup) return bad(res, "该用户名已被注册", 409);
-    const info = db.prepare("INSERT INTO user (name, pass) VALUES (?, ?)").run(name, hashPass(password));
+    const isFirst = db.prepare("SELECT COUNT(*) AS c FROM user").get().c === 0;
+    const role = isFirst ? "admin" : "user";   /* 首个注册用户自动成为管理员 */
+    const info = db.prepare("INSERT INTO user (name, pass, role) VALUES (?, ?, ?)").run(name, hashPass(password), role);
     const uid = Number(info.lastInsertRowid);
     const token = sign({ uid, name, exp: Date.now() + TOKEN_DAYS * 86400000 });
-    return json(res, 200, { ok: true, token, name, uid });
+    return json(res, 200, { ok: true, token, name, uid, role });
   }
 
   /* ---- 登录 ---- */
   if (p === "/api/login" && req.method === "POST") {
     const { name, password } = body || {};
     if (typeof name !== "string" || typeof password !== "string") return bad(res, "参数缺失");
-    const u = db.prepare("SELECT id, name, pass FROM user WHERE name = ?").get(name);
+    const u = db.prepare("SELECT id, name, pass, role FROM user WHERE name = ?").get(name);
     if (!u || !checkPass(password, u.pass)) return bad(res, "用户名或密码错误", 401);
     const token = sign({ uid: u.id, name: u.name, exp: Date.now() + TOKEN_DAYS * 86400000 });
-    return json(res, 200, { ok: true, token, name: u.name, uid: u.id });
+    return json(res, 200, { ok: true, token, name: u.name, uid: u.id, role: u.role || "user" });
   }
 
   /* ---- 词库目录（公开）：级别过滤 / 模糊检索 ---- */
@@ -656,6 +672,65 @@ async function handleApi(req, res, url, body) {
   const auth = req.headers.authorization || "";
   if (auth.startsWith("Bearer ")) user = verify(auth.slice(7));
   if (!user) return bad(res, "未登录或令牌已失效", 401);
+  /* 角色实时读库（令牌不携带角色，便于提升/降权即时生效）；顺便记最近活跃 */
+  const urow = db.prepare("SELECT role FROM user WHERE id = ?").get(user.uid);
+  user.role = (urow && urow.role) || "user";
+  user.isAdmin = user.role === "admin";
+  try { db.prepare("UPDATE user SET last_seen = datetime('now') WHERE id = ?").run(user.uid); } catch (e) {}
+
+  /* ---- 管理员：账号总览 ---- */
+  if (p === "/api/admin/overview" && req.method === "GET") {
+    if (!user.isAdmin) return bad(res, "需要管理员权限", 403);
+    const q1 = s => Number(db.prepare(s).get().c);
+    return json(res, 200, {
+      ok: true,
+      users: q1("SELECT COUNT(*) AS c FROM user"),
+      admins: q1("SELECT COUNT(*) AS c FROM user WHERE role = 'admin'"),
+      activeToday: q1("SELECT COUNT(*) AS c FROM user WHERE last_seen IS NOT NULL AND date(last_seen, 'localtime') = date('now', 'localtime')"),
+      syncsToday: q1("SELECT COUNT(*) AS c FROM sync_log WHERE date(created_at, 'localtime') = date('now', 'localtime')"),
+      newsToday: newsAddedToday(),
+      newsTotal: q1("SELECT COUNT(*) AS c FROM news_item"),
+      generatedAt: new Date().toISOString()
+    });
+  }
+
+  /* ---- 管理员：账号清单 + 学习情况（卡片/连续/正确率/今日活动/设置） ---- */
+  if (p === "/api/admin/users" && req.method === "GET") {
+    if (!user.isAdmin) return bad(res, "需要管理员权限", 403);
+    const rows = db.prepare(`
+      SELECT u.id, u.name, u.role, u.created_at, u.last_seen,
+             s.updated_at AS synced_at, LENGTH(s.data) AS bytes, s.data AS raw
+      FROM user u LEFT JOIN user_state s ON s.user_id = u.id
+      ORDER BY (s.updated_at IS NULL), s.updated_at DESC, u.id
+    `).all();
+    const now = new Date();
+    const p2 = n => String(n).padStart(2, "0");
+    const todayKey = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate());
+    const users = rows.map(r => {
+      let st = {};
+      try { st = JSON.parse(r.raw || "{}") || {}; } catch (e) {}
+      const cards = st.srs && st.srs.cards ? Object.values(st.srs.cards) : [];
+      const stats = st.stats || {};
+      const prog = st.prog || {};
+      const settings = st.settings || {};
+      return {
+        id: r.id, name: r.name, role: r.role || "user",
+        createdAt: r.created_at, lastSeen: r.last_seen, syncedAt: r.synced_at,
+        bytes: Number(r.bytes || 0),
+        cards: cards.length,
+        learned: cards.filter(c => c.reps >= 1).length,
+        due: cards.filter(c => (c.due || 0) <= Date.now()).length,
+        streak: stats.streak | 0,
+        best: stats.best | 0,
+        acc: stats.quizTotal ? Math.round((stats.quizCorrect || 0) / stats.quizTotal * 100) : null,
+        quizTotal: stats.quizTotal | 0,
+        activeToday: prog.date === todayKey && ((prog.words | 0) > 0 || (prog.read || []).length > 0 || prog.quiz === true),
+        level: settings.level || "",
+        newPerDay: settings.newPerDay || null
+      };
+    });
+    return json(res, 200, { ok: true, count: users.length, users });
+  }
 
   /* ---- 拉取云同步状态 ---- */
   if (p === "/api/state" && req.method === "GET") {

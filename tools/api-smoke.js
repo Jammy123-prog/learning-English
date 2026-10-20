@@ -20,7 +20,7 @@ async function call(method, path, body, token) {
 (async () => {
   /* 1. health */
   const h = await call("GET", "/api/health");
-  ok(h.status === 200 && h.j.ok && h.j.version === "1.5.0", "health 返回 1.5.0");
+  ok(h.status === 200 && h.j.ok && h.j.version === "1.6.0", "health 返回 1.6.0");
   ok(h.j.words >= 160, "词库种子已入库（" + h.j.words + " 词，含全量目录）");
 
   /* 2. 注册 */
@@ -36,6 +36,13 @@ async function call(method, path, body, token) {
   ok(login.status === 200 && login.j.token, "登录成功");
   const wrong = await call("POST", "/api/login", { name: NAME, password: "wrong!" });
   ok(wrong.status === 401, "错误口令返回 401");
+  ok(typeof reg.j.role === "string" && typeof login.j.role === "string", "注册/登录返回角色（本账号 role=" + login.j.role + "）");
+
+  /* 3b. 管理员接口权限隔离（普通账号 403 / 未登录 401；管理员放行由 adminprobe 覆盖） */
+  const admUser = await call("GET", "/api/admin/overview", null, login.j.token);
+  ok(admUser.status === 403, "普通账号访问管理接口返回 403");
+  const admAnon = await call("GET", "/api/admin/users");
+  ok(admAnon.status === 401, "未登录访问管理接口返回 401");
   const tok = login.j.token;
 
   /* 4. state 读写 */

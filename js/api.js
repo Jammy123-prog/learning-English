@@ -209,6 +209,7 @@ const EVSync = (() => {
       });
       localStorage.setItem(T, j.token);
       localStorage.setItem(N, j.name);
+      try { localStorage.setItem("ev_role", j.role || "user"); } catch (e) {}
       const changed = await pullChanged().catch(() => false);
       if (changed) { location.reload(); return; }
       await pushNow().catch(() => {});   // 首次登录：把本地数据上传
@@ -252,6 +253,7 @@ const EVSync = (() => {
     m.querySelector("#ev-logout").addEventListener("click", () => {
       localStorage.removeItem(T);
       localStorage.removeItem(N);
+      try { localStorage.removeItem("ev_role"); } catch (e) {}
       paintBtn();
       closeModal();
       if (typeof toast === "function") toast("已退出登录，数据保留在本机");

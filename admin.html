@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理后台 · EverWord</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <style>
+    /* ===== 管理后台（复用 Claymorphism 设计令牌） ===== */
+    body { background: linear-gradient(160deg, #EEF0FF 0%, #FDF3FA 55%, #EDFAF6 100%); min-height: 100vh; }
+    .ad-wrap { max-width: 1200px; margin: 0 auto; padding: 22px 18px 60px; }
+    .ad-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .ad-brand { font: 800 19px var(--font-display); color: var(--ink-deep); }
+    .ad-brand em { font-style: normal; color: var(--primary); }
+    .ad-tag {
+      font: 800 10.5px var(--font-body); color: var(--green-deep);
+      background: var(--mint-a); padding: 4px 12px; border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, .9);
+    }
+    .ad-actions { margin-left: auto; display: flex; gap: 8px; }
+    .ad-btn {
+      border: none; cursor: pointer; text-decoration: none;
+      font: 800 12px var(--font-body); color: var(--primary);
+      background: var(--blue-a); padding: 8px 15px; border-radius: 999px;
+      border: 2px solid rgba(255, 255, 255, .95);
+      box-shadow: 2px 3px 6px rgba(30, 27, 75, .10);
+      transition: transform .18s var(--ease-bounce);
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .ad-btn:hover { transform: translateY(-1px); }
+    .ad-btn.ghost { color: var(--ink-mut); background: var(--lilac-a); }
+
+    /* 登录闸口 */
+    .ad-gate {
+      max-width: 430px; margin: 9vh auto 0; background: #fff;
+      border: var(--clay-border); border-radius: var(--r-lg);
+      box-shadow: var(--clay-in); padding: 30px 28px; text-align: center;
+    }
+    .ad-gate h1 { font: 800 21px var(--font-display); color: var(--ink-deep); margin: 0 0 6px; }
+    .ad-gate p { font: 500 13px var(--font-body); color: var(--ink-mut); margin: 0 0 18px; }
+    .ad-field { text-align: left; margin: 12px 0; }
+    .ad-field label { display: block; font: 700 12px var(--font-body); color: var(--ink-deep); margin-bottom: 6px; }
+    .ad-field input {
+      width: 100%; box-sizing: border-box; border: 2px solid rgba(255, 255, 255, .95); outline: none;
+      font: 600 14px var(--font-body); color: var(--ink-deep);
+      background: #fff; padding: 11px 15px; border-radius: 14px;
+      box-shadow: inset 2px 3px 6px rgba(30, 27, 75, .08);
+      transition: box-shadow .18s, border-color .18s;
+    }
+    .ad-field input:focus { border-color: var(--primary); box-shadow: inset 2px 3px 6px rgba(30,27,75,.05), 0 0 0 4px rgba(99,102,241,.16); }
+    .ad-go {
+      width: 100%; border: none; cursor: pointer; margin-top: 8px;
+      font: 800 14px var(--font-body); color: #fff;
+      background: linear-gradient(175deg, var(--primary-soft), var(--primary));
+      padding: 12px; border-radius: 14px;
+      box-shadow: 3px 4px 10px rgba(79, 70, 229, .35);
+      transition: transform .16s var(--ease-bounce);
+    }
+    .ad-go:hover { transform: translateY(-1px); }
+    .ad-err { font: 700 12.5px var(--font-body); color: #DC2626; min-height: 18px; margin-top: 10px; }
+
+    /* KPI 总览 */
+    .ad-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 18px; }
+    .ad-kpi {
+      background: #fff; border: var(--clay-border); border-radius: 18px;
+      box-shadow: var(--clay-in); padding: 14px 10px; text-align: center;
+    }
+    .ad-kpi b { display: block; font: 800 22px var(--font-display); color: var(--primary); line-height: 1.2; }
+    .ad-kpi span { font: 700 11px var(--font-body); color: var(--ink-mut); }
+
+    /* 账号表 */
+    .ad-card {
+      background: #fff; border: var(--clay-border); border-radius: var(--r-lg);
+      box-shadow: var(--clay-in); padding: 16px 16px 6px;
+    }
+    .ad-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .ad-card-head h2 { font: 800 16px var(--font-display); color: var(--ink-deep); margin: 0; }
+    .ad-filter {
+      flex: 1; min-width: 160px; max-width: 300px; border: 2px solid rgba(255, 255, 255, .95); outline: none;
+      font: 600 12.5px var(--font-body); color: var(--ink-deep);
+      background: #fff; padding: 8px 14px; border-radius: 999px;
+      box-shadow: inset 2px 3px 6px rgba(30, 27, 75, .08);
+      margin-left: auto;
+    }
+    .ad-table-wrap { overflow-x: auto; }
+    table.ad-table { width: 100%; border-collapse: collapse; font: 500 12.5px var(--font-body); color: var(--ink-deep); }
+    .ad-table th {
+      text-align: left; font: 800 11px var(--font-body); color: var(--ink-mut);
+      padding: 9px 10px; border-bottom: 2px solid rgba(49, 46, 129, .10);
+      white-space: nowrap; cursor: pointer; user-select: none;
+    }
+    .ad-table th:hover { color: var(--primary); }
+    .ad-table td { padding: 10px; border-bottom: 2px dashed rgba(49, 46, 129, .10); white-space: nowrap; }
+    .ad-table tr:last-child td { border-bottom: none; }
+    .ad-table tr:hover td { background: rgba(99, 102, 241, .04); }
+    .ad-name { font-weight: 800; }
+    .ad-role {
+      font: 800 10px var(--font-body); padding: 2px 9px; border-radius: 999px; margin-left: 6px;
+      border: 1.5px solid rgba(255, 255, 255, .9); vertical-align: 1px;
+    }
+    .ad-role.admin { color: #fff; background: var(--primary); }
+    .ad-role.user { color: var(--ink-mut); background: var(--lilac-a); }
+    .ad-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; margin-right: 5px; vertical-align: 1px; }
+    .ad-dot.on { background: #10B981; box-shadow: 0 0 0 3px rgba(16, 185, 129, .18); }
+    .ad-dot.off { background: #CBD5E1; }
+    .ad-bar-cell { min-width: 90px; }
+    .ad-bar { display: block; height: 8px; border-radius: 999px; background: rgba(99, 102, 241, .12); overflow: hidden; }
+    .ad-bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #8B5CF6, var(--primary)); }
+    .ad-muted { color: var(--ink-mut); }
+    .ad-good { color: #059669; font-weight: 800; }
+    .ad-warn { color: #D97706; font-weight: 800; }
+    .ad-empty { text-align: center; padding: 40px 0; font: 600 13px var(--font-body); color: var(--ink-mut); }
+
+    @media (max-width: 900px) { .ad-kpis { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 560px) { .ad-kpis { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <div class="ad-wrap">
+    <div class="ad-top">
+      <span class="ad-brand">EverWord <em>· 管理后台</em></span>
+      <span class="ad-tag">ADMIN</span>
+      <div class="ad-actions">
+        <button class="ad-btn" id="ad-refresh">刷新</button>
+        <button class="ad-btn ghost" id="ad-csv">导出 CSV</button>
+        <a class="ad-btn ghost" href="index.html">返回应用</a>
+      </div>
+    </div>
+
+    <!-- 登录闸口 -->
+    <div class="ad-gate" id="ad-gate" hidden>
+      <h1>管理员登录</h1>
+      <p>仅管理员账号可查看账号使用与学习情况（首个注册账号即为管理员）</p>
+      <div class="ad-field"><label>用户名</label><input id="ad-name" autocomplete="username" maxlength="24"></div>
+      <div class="ad-field"><label>密码</label><input id="ad-pass" type="password" autocomplete="current-password"></div>
+      <button class="ad-go" id="ad-login">登录管理后台</button>
+      <div class="ad-err" id="ad-err"></div>
+    </div>
+
+    <!-- 数据区 -->
+    <div id="ad-main" hidden>
+      <div class="ad-kpis" id="ad-kpis"></div>
+      <div class="ad-card">
+        <div class="ad-card-head">
+          <h2>账号与学习情况</h2>
+          <span class="ad-muted" id="ad-count"></span>
+          <input class="ad-filter" id="ad-filter" type="search" placeholder="筛选账号名…" maxlength="30">
+        </div>
+        <div class="ad-table-wrap">
+          <table class="ad-table">
+            <thead><tr id="ad-thead"></tr></thead>
+            <tbody id="ad-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  "use strict";
+  /* ================= 管理后台：账号总览 + 学习情况 ================= */
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const fmtDT = s => { if (!s) return "—"; const d = new Date(s.includes("T") ? s : s.replace(" ", "T") + "Z");
+    return isNaN(d) ? s : d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0")
+      + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+  const fmtKB = n => n ? (n >= 1024 ? (n / 1024).toFixed(1) + " KB" : n + " B") : "—";
+
+  let USERS = [], sortKey = "syncedAt", sortAsc = false, timer = null;
+  const isAdmin = (() => { try { return localStorage.getItem("ev_role") === "admin"; } catch (e) { return false; } })();
+  const hasTok = (() => { try { return !!localStorage.getItem("ev_token"); } catch (e) { return false; } })();
+
+  async function api(path) {
+    let tk = ""; try { tk = localStorage.getItem("ev_token") || ""; } catch (e) {}
+    const r = await fetch(path, { headers: { Authorization: "Bearer " + tk }, signal: AbortSignal.timeout(9000) });
+    const j = await r.json().catch(() => ({}));
+    return { status: r.status, j };
+  }
+
+  /* ---- 登录 ---- */
+  $("ad-login").addEventListener("click", async () => {
+    const name = $("ad-name").value.trim(), pass = $("ad-pass").value;
+    $("ad-err").textContent = "";
+    if (!name || !pass) { $("ad-err").textContent = "请输入用户名与密码"; return; }
+    const btn = $("ad-login"); btn.disabled = true; btn.textContent = "登录中…";
+    try {
+      const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, password: pass }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.status !== 200) { $("ad-err").textContent = j.msg || "登录失败"; return; }
+      if ((j.role || "user") !== "admin") { $("ad-err").textContent = "该账号不是管理员（首个注册账号自动成为管理员）"; return; }
+      try { localStorage.setItem("ev_token", j.token); localStorage.setItem("ev_name", j.name); localStorage.setItem("ev_role", j.role); } catch (e) {}
+      gate(false); load();
+    } catch (e) { $("ad-err").textContent = "网络异常：" + e.message; }
+    finally { btn.disabled = false; btn.textContent = "登录管理后台"; }
+  });
+  $("ad-pass").addEventListener("keydown", e => { if (e.key === "Enter") $("ad-login").click(); });
+
+  function gate(show) { $("ad-gate").hidden = !show; $("ad-main").hidden = show; }
+
+  /* ---- 总览 KPI ---- */
+  function kpis(o) {
+    const items = [
+      ["账号总数", o.users], ["管理员", o.admins], ["今日活跃", o.activeToday],
+      ["今日同步", o.syncsToday], ["今日新增新闻", o.newsToday], ["新闻总量", o.newsTotal]
+    ];
+    $("ad-kpis").innerHTML = items.map(x => '<div class="ad-kpi"><b>' + x[1] + "</b><span>" + x[0] + "</span></div>").join("");
+  }
+
+  /* ---- 账号表 ---- */
+  const COLS = [
+    { k: "name", t: "账号", render: u => '<span class="ad-name">' + esc(u.name) + '</span><span class="ad-role ' + u.role + '">' + (u.role === "admin" ? "管理员" : "成员") + "</span>" },
+    { k: "activeToday", t: "今日", render: u => '<span class="ad-dot ' + (u.activeToday ? "on" : "off") + '"></span>' + (u.activeToday ? "已学习" : "未学习") },
+    { k: "createdAt", t: "注册时间", render: u => fmtDT(u.createdAt) },
+    { k: "lastSeen", t: "最近活跃", render: u => fmtDT(u.lastSeen) },
+    { k: "syncedAt", t: "最近同步", render: u => fmtDT(u.syncedAt) },
+    { k: "learned", t: "已学 / 卡片", render: u => u.cards ? "<b>" + u.learned + "</b> / " + u.cards : '<span class="ad-muted">未开始</span>' },
+    { k: "due", t: "待复习", render: u => u.cards ? (u.due > 20 ? '<span class="ad-warn">' + u.due + "</span>" : u.due) : '<span class="ad-muted">—</span>' },
+    { k: "streak", t: "连续天数", render: u => u.streak ? '<span class="ad-good">' + u.streak + " 天</span>" : '<span class="ad-muted">0</span>' },
+    { k: "acc", t: "正确率", render: u => u.acc == null ? '<span class="ad-muted">—</span>' : u.acc + "%<span class='ad-muted'>（" + u.quizTotal + " 题）</span>" },
+    { k: "level", t: "设置", render: u => (u.level || '<span class="ad-muted">默认</span>') + (u.newPerDay ? " · " + u.newPerDay + " 词/天" : "") },
+    { k: "bytes", t: "云存档", render: u => '<span class="ad-bar-cell"><span class="ad-bar"><i style="width:' + Math.min(100, Math.round(u.bytes / 5120)) + '%"></i></span><span class="ad-muted">' + fmtKB(u.bytes) + "</span></span>" }
+  ];
+  function renderTable() {
+    const kw = ($("ad-filter").value || "").trim().toLowerCase();
+    let rows = kw ? USERS.filter(u => u.name.toLowerCase().includes(kw)) : USERS.slice();
+    const col = COLS.find(c => c.k === sortKey) || COLS[0];
+    rows.sort((a, b) => {
+      const va = a[sortKey], vb = b[sortKey];
+      const cmp = typeof va === "string" ? String(va).localeCompare(String(vb)) : (Number(va) || 0) - (Number(vb) || 0);
+      return sortAsc ? cmp : -cmp;
+    });
+    $("ad-thead").innerHTML = COLS.map(c =>
+      "<th data-k=\"" + c.k + "\">" + c.t + (sortKey === c.k ? (sortAsc ? " ↑" : " ↓") : "") + "</th>").join("");
+    $("ad-tbody").innerHTML = rows.length
+      ? rows.map(u => "<tr>" + COLS.map(c => "<td>" + c.render(u) + "</td>").join("") + "</tr>").join("")
+      : '<tr><td colspan="' + COLS.length + '" class="ad-empty">没有匹配的账号</td></tr>';
+    $("ad-count").textContent = "共 " + USERS.length + " 个账号" + (kw ? "，筛选出 " + rows.length + " 个" : "");
+  }
+  $("ad-thead").closest("table").addEventListener("click", e => {
+    const th = e.target.closest("th[data-k]");
+    if (!th) return;
+    if (sortKey === th.dataset.k) sortAsc = !sortAsc; else { sortKey = th.dataset.k; sortAsc = false; }
+    renderTable();
+  });
+  $("ad-filter").addEventListener("input", renderTable);
+
+  /* ---- CSV 导出（Excel 友好：UTF-8 BOM） ---- */
+  $("ad-csv").addEventListener("click", () => {
+    if (!USERS.length) return;
+    const head = ["账号", "角色", "注册时间", "最近活跃", "最近同步", "卡片数", "已学", "待复习", "连续天数", "最佳", "正确率%", "测验题数", "今日已学习", "级别", "每日词量", "云存档字节"];
+    const lines = [head.join(",")].concat(USERS.map(u => [
+      u.name, u.role, u.createdAt || "", u.lastSeen || "", u.syncedAt || "",
+      u.cards, u.learned, u.due, u.streak, u.best, u.acc == null ? "" : u.acc, u.quizTotal,
+      u.activeToday ? "是" : "否", u.level || "", u.newPerDay || "", u.bytes
+    ].map(v => { const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(",")));
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "everword-accounts-" + new Date().toISOString().slice(0, 10) + ".csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  /* ---- 加载 ---- */
+  async function load() {
+    try {
+      const [ov, us] = await Promise.all([api("/api/admin/overview"), api("/api/admin/users")]);
+      if (ov.status === 401 || us.status === 401) { gate(true); $("ad-err").textContent = "登录已过期，请重新登录"; return; }
+      if (ov.status === 403 || us.status === 403) { gate(true); $("ad-err").textContent = "该账号不是管理员"; return; }
+      if (ov.j.ok) kpis(ov.j);
+      if (us.j.ok) { USERS = us.j.users || []; renderTable(); }
+    } catch (e) {
+      $("ad-count").textContent = "加载失败：" + e.message;
+    }
+  }
+  $("ad-refresh").addEventListener("click", load);
+
+  (function init() {
+    if (isAdmin && hasTok) { gate(false); load(); timer = setInterval(load, 60000); }
+    else if (hasTok) { /* 有令牌但角色未记录 → 试探一次 */ gate(false); load(); }
+    else gate(true);
+  })();
+  </script>
+</body>
+</html>

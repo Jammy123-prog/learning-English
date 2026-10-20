@@ -2,7 +2,7 @@
 
 > 用认知科学把英语长在记忆里 —— SM-2 间隔重复 × 分级沉浸阅读 × 主动回忆测验
 
-![version](https://img.shields.io/badge/version-1.5.0-4F46E5) ![license](https://img.shields.io/badge/license-MIT-22C55E) ![node](https://img.shields.io/badge/node-%E2%89%A522-1DA851) ![deps](https://img.shields.io/badge/deps-zero-FFB01F)
+![version](https://img.shields.io/badge/version-1.6.0-4F46E5) ![license](https://img.shields.io/badge/license-MIT-22C55E) ![node](https://img.shields.io/badge/node-%E2%89%A522-1DA851) ![deps](https://img.shields.io/badge/deps-zero-FFB01F)
 
 **EverWord** 是一个科学记忆驱动的英语学习平台：每日单词按遗忘曲线自动排程，分级文章支持悬浮取词与全文朗读，每日测验主动提取记忆，四六级 / 专八 / 雅思题库整卷练习。**零第三方依赖**——前端双击即用，后端一个文件，一条命令启动。
 
@@ -136,6 +136,10 @@ learning-English/
 | GET | `/api/news?q=&date=&days=` | – | 新闻检索：标题/摘要多词模糊（AND 语义，标题命中优先）+ 发布日期过滤（date=YYYY-MM-DD 或 days=N），返回 matched 命中数 |
 | GET | `/api/news/stats` | – | 新闻表盘：今日/近 7 天每日新增、按来源与主题分布、各来源精读占比（阅读页可视化数据源） |
 | GET | `/api/news/item?id=` | – | 新闻精读：返回单条正文段落数组（供站内阅读） |
+| GET | `/api/admin/overview` | Admin | 账号总览：总数 / 管理员数 / 今日活跃 / 今日同步 / 新闻新增 |
+| GET | `/api/admin/users` | Admin | 账号清单 + 学习情况（卡片/连续/正确率/今日活动/设置/云存档体积） |
+
+> **管理后台**：浏览器访问 `/admin.html`（如 `http://localhost:8787/admin.html`）。首个注册账号自动成为管理员；已有部署可用环境变量 `EV_ADMIN=用户名` 启动一次完成提升，或直接更新 SQLite `user.role`。
 
 ## 🗄 数据库：SQLite 默认，MySQL 按需采用
 

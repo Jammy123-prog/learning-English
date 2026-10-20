@@ -110,6 +110,14 @@
     .ad-good { color: #059669; font-weight: 800; }
     .ad-warn { color: #D97706; font-weight: 800; }
     .ad-empty { text-align: center; padding: 40px 0; font: 600 13px var(--font-body); color: var(--ink-mut); }
+    .ad-del {
+      border: 2px solid rgba(255, 255, 255, .92); cursor: pointer;
+      font: 800 11px var(--font-body); color: #DC2626;
+      background: #FEE2E2; padding: 5px 12px; border-radius: 999px;
+      transition: transform .16s var(--ease-bounce), background .16s;
+    }
+    .ad-del:hover { transform: translateY(-1px); background: #FECACA; }
+    .ad-del:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
     @media (max-width: 900px) { .ad-kpis { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 560px) { .ad-kpis { grid-template-columns: repeat(2, 1fr); } }
@@ -168,6 +176,7 @@
   const fmtKB = n => n ? (n >= 1024 ? (n / 1024).toFixed(1) + " KB" : n + " B") : "—";
 
   let USERS = [], sortKey = "syncedAt", sortAsc = false, timer = null;
+  const ME = (() => { try { return localStorage.getItem("ev_name") || ""; } catch (e) { return ""; } })();
   const isAdmin = (() => { try { return localStorage.getItem("ev_role") === "admin"; } catch (e) { return false; } })();
   const hasTok = (() => { try { return !!localStorage.getItem("ev_token"); } catch (e) { return false; } })();
 
@@ -219,7 +228,10 @@
     { k: "streak", t: "连续天数", render: u => u.streak ? '<span class="ad-good">' + u.streak + " 天</span>" : '<span class="ad-muted">0</span>' },
     { k: "acc", t: "正确率", render: u => u.acc == null ? '<span class="ad-muted">—</span>' : u.acc + "%<span class='ad-muted'>（" + u.quizTotal + " 题）</span>" },
     { k: "level", t: "设置", render: u => (u.level || '<span class="ad-muted">默认</span>') + (u.newPerDay ? " · " + u.newPerDay + " 词/天" : "") },
-    { k: "bytes", t: "云存档", render: u => '<span class="ad-bar-cell"><span class="ad-bar"><i style="width:' + Math.min(100, Math.round(u.bytes / 5120)) + '%"></i></span><span class="ad-muted">' + fmtKB(u.bytes) + "</span></span>" }
+    { k: "bytes", t: "云存档", render: u => '<span class="ad-bar-cell"><span class="ad-bar"><i style="width:' + Math.min(100, Math.round(u.bytes / 5120)) + '%"></i></span><span class="ad-muted">' + fmtKB(u.bytes) + "</span></span>" },
+    { k: "id", t: "操作", render: u => u.name === ME
+        ? '<span class="ad-muted">当前账号</span>'
+        : '<button class="ad-del" data-id="' + u.id + '" data-name="' + esc(u.name) + '">删除</button>' }
   ];
   function renderTable() {
     const kw = ($("ad-filter").value || "").trim().toLowerCase();
@@ -244,6 +256,20 @@
     renderTable();
   });
   $("ad-filter").addEventListener("input", renderTable);
+
+  /* 删除账号：确认后调用 DELETE /api/admin/user?id=（连带清理云同步状态） */
+  $("ad-tbody").addEventListener("click", async e => {
+    const btn = e.target.closest(".ad-del");
+    if (!btn) return;
+    if (!confirm("确定删除账号「" + btn.dataset.name + "」？其云同步学习数据将一并清除，不可恢复。")) return;
+    btn.disabled = true; btn.textContent = "删除中…";
+    try {
+      let tk = ""; try { tk = localStorage.getItem("ev_token") || ""; } catch (e2) {}
+      const r = await fetch("/api/admin/user?id=" + btn.dataset.id, { method: "DELETE", headers: { Authorization: "Bearer " + tk } });
+      if (r.status === 200) load();
+      else { const j = await r.json().catch(() => ({})); alert("删除失败：" + (j.msg || r.status)); btn.disabled = false; btn.textContent = "删除"; }
+    } catch (e2) { alert("网络异常：" + e2.message); btn.disabled = false; btn.textContent = "删除"; }
+  });
 
   /* ---- CSV 导出（Excel 友好：UTF-8 BOM） ---- */
   $("ad-csv").addEventListener("click", () => {

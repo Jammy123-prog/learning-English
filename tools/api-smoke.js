@@ -126,6 +126,12 @@ async function call(method, path, body, token) {
   const js = await fetch(BASE + "/js/vocab-catalog.js");
   ok(js.status === 200 && (await js.text()).includes("EV_CATALOG"), "词库目录静态资源可访问");
 
+  /* 8. 自清理：注销本次测试账号，不在 user 表留下 apismoke_* 残留 */
+  const del = await call("DELETE", "/api/account", null, tok);
+  ok(del.status === 200 && del.j.ok, "注销测试账号成功（自清理，不留残留成员）");
+  const gone = await call("GET", "/api/state", null, tok);
+  ok(gone.status === 401, "注销后原令牌立即失效");
+
   console.log(fails ? "\n" + fails + " 项失败" : "\nAPI 冒烟全部通过");
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error("FAIL  测试执行异常:", e.message); process.exit(1); });

@@ -674,7 +674,8 @@ async function handleApi(req, res, url, body) {
   if (!user) return bad(res, "未登录或令牌已失效", 401);
   /* 角色实时读库（令牌不携带角色，便于提升/降权即时生效）；顺便记最近活跃 */
   const urow = db.prepare("SELECT role FROM user WHERE id = ?").get(user.uid);
-  user.role = (urow && urow.role) || "user";
+  if (!urow) return bad(res, "账号不存在或已注销", 401);   /* 令牌指向已删除的账号 → 立即失效 */
+  user.role = urow.role || "user";
   user.isAdmin = user.role === "admin";
   try { db.prepare("UPDATE user SET last_seen = datetime('now') WHERE id = ?").run(user.uid); } catch (e) {}
 
@@ -730,6 +731,27 @@ async function handleApi(req, res, url, body) {
       };
     });
     return json(res, 200, { ok: true, count: users.length, users });
+  }
+
+  /* ---- 管理员删除账号（不能删自己；连带清理云同步状态与同步日志） ---- */
+  if (p === "/api/admin/user" && req.method === "DELETE") {
+    if (!user.isAdmin) return bad(res, "需要管理员权限", 403);
+    const id = parseInt(url.searchParams.get("id"), 10);
+    if (!id || id < 1) return bad(res, "参数 id 非法");
+    if (id === user.uid) return bad(res, "不能删除当前登录的管理员自己", 400);
+    db.prepare("DELETE FROM user_state WHERE user_id = ?").run(id);
+    db.prepare("DELETE FROM sync_log WHERE user_id = ?").run(id);
+    const info = db.prepare("DELETE FROM user WHERE id = ?").run(id);
+    if (!info.changes) return bad(res, "账号不存在", 404);
+    return json(res, 200, { ok: true });
+  }
+
+  /* ---- 注销自己的账号（冒烟测试自清理 / 用户自助注销） ---- */
+  if (p === "/api/account" && req.method === "DELETE") {
+    db.prepare("DELETE FROM user_state WHERE user_id = ?").run(user.uid);
+    db.prepare("DELETE FROM sync_log WHERE user_id = ?").run(user.uid);
+    db.prepare("DELETE FROM user WHERE id = ?").run(user.uid);
+    return json(res, 200, { ok: true });
   }
 
   /* ---- 拉取云同步状态 ---- */

@@ -20,7 +20,7 @@ async function call(method, path, body, token) {
 (async () => {
   /* 1. health */
   const h = await call("GET", "/api/health");
-  ok(h.status === 200 && h.j.ok && h.j.version === "1.3.0", "health 返回 1.3.0");
+  ok(h.status === 200 && h.j.ok && h.j.version === "1.5.0", "health 返回 1.5.0");
   ok(h.j.words >= 160, "词库种子已入库（" + h.j.words + " 词，含全量目录）");
 
   /* 2. 注册 */
@@ -94,6 +94,24 @@ async function call(method, path, body, token) {
   } else {
     ok(news.j.total >= 0, "news 接口可访问（当前源不可达，条目 0，接口不报错）");
   }
+
+  /* 6b. 新闻表盘统计 */
+  const stats = await call("GET", "/api/news/stats");
+  ok(stats.status === 200 && stats.j.ok && typeof stats.j.today.total === "number"
+    && Array.isArray(stats.j.days) && stats.j.days.length === 7 && Array.isArray(stats.j.bySource),
+    "新闻表盘统计（今日新增 " + (stats.j.today ? stats.j.today.total : 0) + " / 近 7 天 "
+      + ((stats.j.days || []).reduce((a, x) => a + x.n, 0)) + " / 总量 " + (stats.j.total || 0) + "）");
+  ok(stats.j.days.every(x => /^\d{4}-\d{2}-\d{2}$/.test(x.d) && x.n >= 0), "表盘近 7 天序列含补零日期");
+
+  /* 6c. 新闻检索：关键词模糊 + 日期过滤 */
+  const search = await call("GET", "/api/news?q=" + encodeURIComponent("the") + "&limit=5");
+  ok(search.status === 200 && search.j.ok && Array.isArray(search.j.items) && search.j.q === "the",
+    "新闻关键词检索返回结构正确（命中 " + (search.j.matched != null ? search.j.matched : search.j.items.length) + " 条）");
+  const dated = await call("GET", "/api/news?days=30");
+  ok(dated.status === 200 && dated.j.ok && typeof dated.j.matched === "number" && dated.j.days === 30,
+    "新闻日期过滤（近 30 天命中 " + dated.j.matched + " 条）");
+  const today = await call("GET", "/api/news?date=" + new Date().toISOString().slice(0, 10));
+  ok(today.status === 200 && today.j.ok && typeof today.j.matched === "number", "新闻指定日期过滤（命中 " + today.j.matched + " 条，口径为发布日）");
 
   /* 7. 静态页面 */
   const idx = await fetch(BASE + "/");

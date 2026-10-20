@@ -2,6 +2,28 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/cn/1.1.0/) 格式。
 
+## [1.5.0] - 2026-10-20
+
+新闻入库统计口径修正 + 抓取配额可配置化 + 数据库运维保障 + 阅读页新闻表盘与检索 + 原创文章写作规范。
+
+### Added 新增
+- **阅读页新闻表盘**：KPI 卡（今日新增 / 近 7 天新增 / 入库总量 / 可精读）+ 近 7 天每日新增柱状图 + 今日新增按来源分布条形图；数据来自新增公开接口 `GET /api/news/stats`；`file://` 快照模式自动隐藏
+- **新闻检索**：`/api/news` 新增 `q`（标题/摘要多词模糊，AND 语义，相关度排序：标题命中 > 摘要命中）、`date=YYYY-MM-DD`（按发布日）与 `days=N`（近 N 天）参数，响应新增 `matched` 命中数；阅读页新增检索栏（关键词 + 今天/近 7 天/近 30 天/指定日期 + 一键清除）
+- **`docs/原创文章写作规范.md`**：主题 × 对标期刊对照表（The Economist / National Geographic / Wired / New Yorker / gCaptain 等）、结构骨架（lede / nut graf / kicker）、语法文体硬性规则、事实可靠性要求（数据须可溯源、禁止编造）、可读性分级指标（Flesch / 句长 / 词数）与写作自检清单
+- **`tools/backup-db.js`**：`VACUUM INTO` 一致性快照（运行中可备份、去碎片、单文件可直接替换），支持 `--keep=N` 滚动保留、`--out=` 指定目录、`--check` 快速自洽检查
+- **SQLite `busy_timeout`**（默认 5000ms，`SQLITE_BUSY_TIMEOUT` 可覆盖）：多连接/多实例并发写不再直接抛 `SQLITE_BUSY`
+- **每日新增配额**：`CD_MAX_PER_DAY`（China Daily 每日上限，默认 200）、`NEWS_MAX_PER_DAY`（全来源每日上限，0 = 不限）；按 `news_item.fetched_at` 本地日期统计，跨重启有效
+- **按块 `IN (...)` 查询**（`selectIn` / `existsLinks`）：条目多时不会撞 `SQLITE_MAX_VARIABLE_NUMBER`
+
+### Changed 变更
+- **新闻"新增"改为真实新增**：原 `snapshot changes` 口径把 `ON CONFLICT DO UPDATE` 命中的旧条目也计入（日志里的"RSS 新增 462 条"其实 0 条是新的）。现改为先批量判定已存在链接 → 精确区分新增 / 更新，日志同时输出处理量、真实新增、更新已有、今日累计、入库总量
+- **抓取配额放大且可配置**：`CD_PER_SECTION` 8 → **24**（每频道每轮）、新增 `CD_SCAN_LINKS`（频道页候选链接 60）、`WP_FETCH_MAX` 6 → **20**（每轮抓正文篇数）、`NEWS_TTL_MIN` 30（懒刷新间隔分钟）
+- 日新增量估算：200（CD 上限）+ RSS 源产出 ≈ 每日数百条可入库
+
+### 实测（2026-10-20）
+- 一轮刷新：处理 586 条（RSS 462 / China Daily 124）；真实新增 124 条（RSS **0** / China Daily 124）；更新已有 462 条；入库总量 631 → 755
+- `node tools/backup-db.js --keep=3 --check`：`quick_check = ok`，产出 2.46 MB 快照（新闻 631 / 词库 6790）
+
 ## [1.4.0] - 2026-10-19
 
 V1.4：阅读全库检索（文章 + 词库）+ 原创文章 100 篇（新增港航 / 港机 / 物流贸易主题）+ 国际港航媒体新闻源。

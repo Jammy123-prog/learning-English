@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* ============================================================
-   EverWord API & 静态服务器 v1.3.0（零依赖）
+   EverWord API & 静态服务器 v1.5.0（零依赖）
    运行：node server/server.js   （需 Node.js ≥ 22）
    能力：
    - 静态托管前端（http://localhost:8787）
@@ -9,6 +9,8 @@
    - 词库目录：GET /api/words?level=CET-4|CET-6|TEM-8|IELTS（SQLite 种子库）
               GET /api/words?q=xxx&limit=50（全库模糊检索：精确/前缀/包含/子序列/编辑距离）
    - 新闻速览：GET /api/news?topic=&limit=&refresh=1（懒刷新 30 分钟）
+              GET /api/news?q=&date=&days=（标题/摘要多词模糊检索 + 发布日期过滤）
+              GET /api/news/stats（表盘：今日/近7天新增、按类型分布、精读占比）
               GET /api/news/item?id=N（单条精读：RSS 全文 / China Daily 页面提取）
    - 新闻源：CGTN 8 版块 RSS（含 content:encoded 全文）+ China Daily 7 频道（运行时页面提取）
    版权口径：仓库只携带工具与元数据快照；正文仅缓存于本机 data/（gitignore）供个人学习，
@@ -24,11 +26,13 @@ const path = require("path");
 const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 
-const VERSION = "1.3.0";
+const VERSION = "1.5.0";
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "..", "data");
 const DB_FILE = path.join(DATA_DIR, "everword.db");
 const SECRET_FILE = path.join(DATA_DIR, ".secret");
+/* 环境变量整数读取：未设置或非法时回落默认值（便于调参不改代码） */
+const envInt = (k, d) => { const v = parseInt(process.env[k], 10); return Number.isFinite(v) && v >= 0 ? v : d; };
 const PORT = parseInt(process.env.PORT, 10) || 8787;
 const TOKEN_DAYS = 30;
 const STATE_MAX = 512 * 1024; // 单用户状态体积上限
@@ -48,6 +52,9 @@ if (!SECRET) {
 /* ---------------- 数据库 ---------------- */
 const db = new DatabaseSync(DB_FILE);
 db.exec("PRAGMA journal_mode = WAL;");
+/* 写锁等待：多进程/多连接并发写时不再立刻抛 SQLITE_BUSY，而是最多等待 N ms 后重试。
+   0 = 不等待（SQLite 默认）。可用 SQLITE_BUSY_TIMEOUT 环境变量覆盖。 */
+db.exec("PRAGMA busy_timeout = " + envInt("SQLITE_BUSY_TIMEOUT", 5000) + ";");
 db.exec(`
 CREATE TABLE IF NOT EXISTS user (
   id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -235,15 +242,44 @@ const CD_SECTIONS = [
   { path: "/travel",   topic: "旅游·中国日报" }
 ];
 const CD_BASE = "https://www.chinadaily.com.cn";
-const CD_PER_SECTION = 8;       /* 每频道每轮最多抓取的新文章数（对源友好） */
-const NEWS_TTL = 30 * 60 * 1000;
+/* ---- 抓取配额（均可用环境变量覆盖；0 表示不限）----------------------------
+   放大每日真实新增量的三个旋钮：CD_PER_SECTION（每频道每轮）× 频道数 × 每日轮次，
+   再叠加 CD_MAX_PER_DAY / NEWS_MAX_PER_DAY 两个每日上限做总量收敛。      */
+const CD_PER_SECTION = envInt("CD_PER_SECTION", 24);     /* 每频道每轮最多入库的新文章（原 8） */
+const CD_SCAN_LINKS  = Math.max(envInt("CD_SCAN_LINKS", 60), CD_PER_SECTION); /* 频道页候选链接数（需 ≥ 上者） */
+const CD_MAX_PER_DAY = envInt("CD_MAX_PER_DAY", 200);    /* China Daily 每日新增上限 */
+const NEWS_MAX_PER_DAY = envInt("NEWS_MAX_PER_DAY", 0);  /* 全部来源每日新增上限（0 = 不限） */
+const NEWS_TTL_MIN   = envInt("NEWS_TTL_MIN", 30);       /* 懒刷新间隔（分钟）：越小每日轮次越多 */
+const NEWS_TTL = NEWS_TTL_MIN * 60 * 1000;
 const NEWS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36";
 let newsStamp = 0, newsBusy = false;
+/* 真实新增统计：upsert 命中旧行（ON CONFLICT DO UPDATE）也会返回 changes=1，
+   不能用 changes 判断是否新插入。RSS 分支改用「先批量判定已存在集合」精确区分，
+   此处保留总行数用于日志与配额基准。 */
+const newsCount = () => Number(db.prepare("SELECT COUNT(*) AS c FROM news_item").get().c);
+/* 今日已新增：fetched_at 只在首次 INSERT 时写入（更新分支不触碰），
+   因此按本地日期统计即得「今日真实新增量」（跨重启仍有效）。 */
+const newsAddedToday = () => Number(db.prepare(
+  "SELECT COUNT(*) AS c FROM news_item WHERE date(fetched_at, 'localtime') = date('now', 'localtime')").get().c);
+const newsAddedTodayBy = src => Number(db.prepare(
+  "SELECT COUNT(*) AS c FROM news_item WHERE source = ? AND date(fetched_at, 'localtime') = date('now', 'localtime')").get(src).c);
+/* 按块执行 IN (...) 查询：条目数增长后也不会撞上 SQLITE_MAX_VARIABLE_NUMBER */
+function selectIn(links, sql) {
+  const out = [];
+  for (let i = 0; i < links.length; i += 400) {
+    const chunk = links.slice(i, i + 400);
+    if (!chunk.length) continue;
+    const ph = "(" + chunk.map(() => "?").join(",") + ")";
+    out.push(...db.prepare(sql.replace("__IN__", ph)).all(...chunk));
+  }
+  return out;
+}
+const existsLinks = links => new Set(selectIn(links, "SELECT link FROM news_item WHERE link IN __IN__").map(r => r.link));
 
 /* v1.4 港航媒体文章页抓取：这些源的 RSS 只有摘要，正文须访问文章页提取。
    通用 WordPress 风格提取（<p> 段落 + 长度/词数过滤导航噪声），失败仅保留摘要。 */
 const WP_ARTICLE_SOURCES = new Set(["gCaptain", "Splash247", "Hellenic", "The Loadstar", "Container News"]);
-const WP_FETCH_MAX = 6;         /* 每轮最多抓正文的新文章数（对源友好） */
+const WP_FETCH_MAX = envInt("WP_FETCH_MAX", 20);   /* 每轮最多抓正文的新文章数（原 6） */
 const WP_FAIL_BACKOFF = 2 * 60 * 60 * 1000;   /* 解析失败条目 2 小时内不再重试（防付费墙/空正文反复占用名额） */
 const wpFailMark = new Map();   /* link → 最近失败时间戳 */
 
@@ -312,7 +348,7 @@ async function refreshNews(force) {
   if (newsBusy) return;
   if (!force && Date.now() - newsStamp < NEWS_TTL) return;
   newsBusy = true;
-  let added = 0, cdAdded = 0;
+  let processed = 0, cdProcessed = 0;   /* 本轮处理条数（含已存在、仅刷新字段的条目） */
   const wpPending = [];   /* v1.4：港航媒体无全文条目（待抓文章页正文） */
   try {
     /* ---- ① CGTN RSS（含全文） ---- */
@@ -324,7 +360,8 @@ async function refreshNews(force) {
         content = COALESCE(excluded.content, news_item.content),
         summary = COALESCE(NULLIF(news_item.summary, ''), excluded.summary)
     `);
-    db.exec("BEGIN");
+    /* 先解析出本轮全部条目，再批量判定哪些链接已入库 → 精确区分「新增」与「更新」 */
+    const items = [];
     for (const it of results) {
       if (it.status !== "fulfilled") continue;
       const { f, xml } = it.value;
@@ -339,17 +376,42 @@ async function refreshNews(force) {
         try { const pd = pick("pubDate"); if (pd) pub = new Date(pd).toISOString(); } catch (e) {}
         const cem = b.match(/<content:encoded>([\s\S]*?)<\/content:encoded>/i);
         const paras = cem ? contentToParas(cem[1]) : null;
-        if (upsert.run(link, title, f.source, f.topic, pub, pick("description").slice(0, 200), paras ? JSON.stringify(paras) : null).changes > 0) added++;
-        if (!paras && WP_ARTICLE_SOURCES.has(f.source)) wpPending.push(link);
+        items.push({ link, title, source: f.source, topic: f.topic, pub,
+                     summary: pick("description").slice(0, 200),
+                     content: paras ? JSON.stringify(paras) : null });
       }
+    }
+    const known = existsLinks(items.map(x => x.link));
+    /* DO NOTHING：冲突时 changes=0，可精确判定「是否真的插入」，且不会因并发写入抛唯一约束错误 */
+    const insNews = db.prepare(
+      "INSERT INTO news_item (link, title, source, topic, published, summary, content) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(link) DO NOTHING");
+    const updNews = db.prepare(
+      "UPDATE news_item SET content = COALESCE(?, content), summary = COALESCE(NULLIF(summary, ''), ?) WHERE link = ?");
+    /* 每日总配额（0 = 不限）：以今日已新增量为基准扣减，跨重启依然有效 */
+    let quota = NEWS_MAX_PER_DAY ? Math.max(0, NEWS_MAX_PER_DAY - newsAddedToday()) : Infinity;
+    let rssAdded = 0, rssUpdated = 0, rssSkipped = 0;
+    db.exec("BEGIN");
+    for (const x of items) {
+      processed++;
+      if (known.has(x.link)) {            /* 已存在：仅补齐正文/摘要，不计入新增 */
+        updNews.run(x.content, x.summary, x.link);
+        rssUpdated++;
+      } else if (quota <= 0) {            /* 今日配额用尽：本轮不再入库 */
+        rssSkipped++;
+      } else {
+        /* changes=0 表示链接已存在（同轮重复或被并发写入抢先插入）→ 不计新增 */
+        if (insNews.run(x.link, x.title, x.source, x.topic, x.pub, x.summary, x.content).changes > 0) { rssAdded++; quota--; }
+        else rssUpdated++;
+        known.add(x.link);
+      }
+      if (!x.content && WP_ARTICLE_SOURCES.has(x.source)) wpPending.push(x.link);
     }
     db.exec("COMMIT");
 
     /* ---- ①b 港航媒体文章页 → 提取正文（每轮限流，对源友好） ---- */
     if (wpPending.length) {
       try {
-        const ph = "(" + wpPending.map(() => "?").join(",") + ")";
-        const rows = db.prepare("SELECT link, content FROM news_item WHERE link IN " + ph).all(...wpPending);
+        const rows = selectIn(wpPending, "SELECT link, content FROM news_item WHERE link IN __IN__");
         const hasC = new Set(rows.filter(r => r.content && r.content.length > 10).map(r => r.link));
         const now = Date.now();
         const tasks = wpPending.filter(u => !hasC.has(u) && !(wpFailMark.get(u) > now - WP_FAIL_BACKOFF)).slice(0, WP_FETCH_MAX);
@@ -372,6 +434,8 @@ async function refreshNews(force) {
     }
 
     /* ---- ② China Daily：频道页发现新文章 → 提取正文 ---- */
+    let cdToday = newsAddedTodayBy("China Daily");   /* 今日已新增（按 fetched_at 统计，跨重启有效） */
+    let cdAdded = 0;
     for (const sec of CD_SECTIONS) {
       try {
         const html = await httpGet(CD_BASE + sec.path, 6000);
@@ -383,26 +447,43 @@ async function refreshNews(force) {
             if (u.startsWith("//")) return "https:" + u;
             return CD_BASE + u;
           })
-        )].slice(0, CD_PER_SECTION + 4);
+        )].slice(0, CD_SCAN_LINKS);
         if (!links.length) continue;
-        const ph = "(" + links.map(() => "?").join(",") + ")";
-        const known = new Set(db.prepare("SELECT link FROM news_item WHERE link IN " + ph).all(...links).map(r => r.link));
-        const fresh = links.filter(u => !known.has(u)).slice(0, CD_PER_SECTION);
+        /* 本频道剩余额度 = 每日上限 − 今日已新增（含本轮已入库的）− 全局配额 */
+        const left = Math.min(
+          CD_PER_SECTION,
+          CD_MAX_PER_DAY ? Math.max(0, CD_MAX_PER_DAY - cdToday) : CD_PER_SECTION,
+          quota === Infinity ? CD_PER_SECTION : Math.max(0, quota)
+        );
+        if (left <= 0) continue;
+        const known = existsLinks(links);
+        const fresh = links.filter(u => !known.has(u)).slice(0, left);
         if (!fresh.length) continue;
         const arts = await Promise.allSettled(fresh.map(u => httpGet(u, 8000)));
         db.exec("BEGIN");
+        let insCnt = 0;
         arts.forEach((a, i) => {
           if (a.status !== "fulfilled") return;
           const parsed = parseCdArticle(a.value);
           if (!parsed) return;
-          if (upsert.run(fresh[i], parsed.title, "China Daily", sec.topic, parsed.published,
-              parsed.paras[0].slice(0, 200), JSON.stringify(parsed.paras)).changes > 0) cdAdded++;
+          upsert.run(fresh[i], parsed.title, "China Daily", sec.topic, parsed.published,
+              parsed.paras[0].slice(0, 200), JSON.stringify(parsed.paras));
+          insCnt++;
         });
         db.exec("COMMIT");
+        cdProcessed += insCnt; cdAdded += insCnt; cdToday += insCnt; quota -= insCnt;
       } catch (e) { /* 单频道失败不影响其他 */ }
     }
     newsStamp = Date.now();
-    if (added || cdAdded) console.log("[ev] 新闻刷新：RSS 新增 " + added + " 条，China Daily 新增 " + cdAdded + " 条");
+    if (processed || cdProcessed) {
+      const newCnt = rssAdded + cdAdded;
+      console.log("[ev] 新闻刷新：处理 " + (processed + cdProcessed) + " 条（RSS " + processed + " / China Daily " + cdProcessed + "）"
+        + "；真实新增 " + newCnt + " 条（RSS " + rssAdded + " / China Daily " + cdAdded + "）"
+        + "；更新已有 " + rssUpdated + " 条"
+        + (rssSkipped ? "（" + rssSkipped + " 条因每日配额未入库）" : "")
+        + "；今日累计新增 " + newsAddedToday() + " 条"
+        + "；入库总量 " + newsCount() + " 条");
+    }
   } catch (e) {
     console.log("[ev] 新闻刷新失败：" + e.message);
     try { db.exec("ROLLBACK"); } catch (e2) {}
@@ -483,21 +564,80 @@ async function handleApi(req, res, url, body) {
     return json(res, 200, { ok: true, count: rows.length, words: rows });
   }
 
-  /* ---- 新闻速览（公开）：多源懒刷新，c=1 表示可精读 ---- */
+  /* ---- 新闻统计（公开）：表盘数据 —— 每日新增走势 / 类型分布 / 精读占比 ---- */
+  if (p === "/api/news/stats" && req.method === "GET") {
+    const total = Number(db.prepare("SELECT COUNT(*) AS c FROM news_item").get().c);
+    const readable = Number(db.prepare("SELECT COUNT(*) AS c FROM news_item WHERE content IS NOT NULL").get().c);
+    const dayCond = "date(fetched_at, 'localtime')";
+    const today = {
+      total: newsAddedToday(),
+      bySource: db.prepare("SELECT source AS k, COUNT(*) AS n FROM news_item WHERE " + dayCond + " = date('now', 'localtime') GROUP BY source ORDER BY n DESC").all().map(x => ({ k: x.k, n: Number(x.n) })),
+      byTopic: db.prepare("SELECT topic AS k, COUNT(*) AS n FROM news_item WHERE " + dayCond + " = date('now', 'localtime') GROUP BY topic ORDER BY n DESC LIMIT 8").all().map(x => ({ k: x.k, n: Number(x.n) }))
+    };
+    const recent = new Map(db.prepare(
+      "SELECT " + dayCond + " AS d, COUNT(*) AS n FROM news_item WHERE " + dayCond + " >= date('now', 'localtime', '-6 day', 'start of day') GROUP BY d"
+    ).all().map(x => [x.d, Number(x.n)]));
+    const p2 = n => String(n).padStart(2, "0");
+    const days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(Date.now() - i * 86400000);
+      const key = d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate());
+      days.push({ d: key, n: recent.get(key) || 0 });
+    }
+    const bySource = db.prepare(
+      "SELECT source AS k, COUNT(*) AS n, SUM(content IS NOT NULL) AS rd FROM news_item GROUP BY source ORDER BY n DESC"
+    ).all().map(x => ({ k: x.k, n: Number(x.n), readable: Number(x.rd || 0) }));
+    return json(res, 200, { ok: true, total, readable, today, days, bySource, generatedAt: new Date().toISOString() });
+  }
+
+  /* ---- 新闻速览（公开）：多源懒刷新，c=1 表示可精读；
+         q=标题/摘要多词模糊检索（AND 语义，标题命中优先），date=YYYY-MM-DD / days=N 按发布日期过滤 ---- */
   if (p === "/api/news" && req.method === "GET") {
     const topic = url.searchParams.get("topic");
     const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit"), 10) || 50));
     const force = url.searchParams.get("refresh") === "1";
+    const q = (url.searchParams.get("q") || "").trim().slice(0, 80);
+    const date = (url.searchParams.get("date") || "").trim();
+    const days = Math.min(365, Math.max(1, parseInt(url.searchParams.get("days"), 10) || 0));
     await refreshNews(force);
-    const WHERE = topic ? "WHERE topic = ?" : "";
-    const args = topic ? [topic, limit] : [limit];
-    const rows = db.prepare(
-      "SELECT id, title, link, source, topic, published, summary, (content IS NOT NULL) AS c FROM news_item " + WHERE + " ORDER BY published DESC, id DESC LIMIT ?"
+    /* 条件拼装：topic / date / days / q（多 token AND 语义；LIKE 对 ASCII 大小写不敏感） */
+    const cond = [], args = [];
+    if (topic) { cond.push("topic = ?"); args.push(topic); }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      cond.push("published IS NOT NULL AND date(published, 'localtime') = date(?)"); args.push(date);
+    } else if (days) {
+      cond.push("published IS NOT NULL AND date(published, 'localtime') >= date('now', 'localtime', ?)"); args.push("-" + days + " day");
+    }
+    const toks = q ? q.split(/\s+/).filter(Boolean).slice(0, 8) : [];
+    for (const t of toks) {
+      cond.push("(title LIKE ? OR summary LIKE ?)");
+      args.push("%" + t + "%", "%" + t + "%");
+    }
+    const WHERE = cond.length ? "WHERE " + cond.join(" AND ") : "";
+    const matched = cond.length
+      ? Number(db.prepare("SELECT COUNT(*) AS c FROM news_item " + WHERE).get(...args).c)
+      : Number(db.prepare("SELECT COUNT(*) AS c FROM news_item").get().c);
+    let rows = db.prepare(
+      "SELECT id, title, link, source, topic, published, summary, (content IS NOT NULL) AS c FROM news_item " + WHERE + " ORDER BY published DESC, id DESC LIMIT 600"
     ).all(...args);
-    const total = db.prepare("SELECT COUNT(*) AS c FROM news_item").get().c;
-    const readable = db.prepare("SELECT COUNT(*) AS c FROM news_item WHERE content IS NOT NULL").get().c;
+    /* 关键词相关度排序：标题命中权重远高于摘要；无 q 时保持发布时间序 */
+    if (toks.length) {
+      const low = s => String(s || "").toLowerCase();
+      const score = r => {
+        const t = low(r.title), s = low(r.summary);
+        let sc = 0;
+        for (const k of toks) sc += (t.includes(k) ? 10 : 0) + (s.includes(k) ? 4 : 0);
+        return sc;
+      };
+      rows = rows.slice().sort((a, b) => score(b) - score(a));
+    }
+    rows = rows.slice(0, limit);
+    const total = Number(db.prepare("SELECT COUNT(*) AS c FROM news_item").get().c);
+    const readable = Number(db.prepare("SELECT COUNT(*) AS c FROM news_item WHERE content IS NOT NULL").get().c);
     const topics = db.prepare("SELECT DISTINCT topic FROM news_item").all().map(x => x.topic);
-    return json(res, 200, { ok: true, total, readable, count: rows.length, topics, items: rows, refreshedAt: new Date(newsStamp).toISOString() });
+    return json(res, 200, { ok: true, total, readable, matched, count: rows.length, topics, items: rows,
+      q: q || null, date: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null, days: days || 0,
+      refreshedAt: new Date(newsStamp).toISOString() });
   }
 
   /* ---- 新闻精读（公开）：单条含正文段落 ---- */

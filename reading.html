@@ -75,6 +75,39 @@
         <span class="ns-badge" id="ns-badge">快照</span>
         <button class="ns-refresh" id="ns-refresh" hidden>刷新</button>
       </div>
+      <!-- v1.5 表盘：每日新增量走势与类型分布（服务器模式；file:// 快照模式自动隐藏） -->
+      <div class="ns-dash" id="ns-dash" hidden>
+        <div class="nsd-kpis">
+          <div class="nsd-kpi"><span class="nsd-num" id="nsd-today">0</span><span class="nsd-lab">今日新增</span></div>
+          <div class="nsd-kpi"><span class="nsd-num" id="nsd-week">0</span><span class="nsd-lab">近 7 天新增</span></div>
+          <div class="nsd-kpi"><span class="nsd-num" id="nsd-total">0</span><span class="nsd-lab">入库总量</span></div>
+          <div class="nsd-kpi"><span class="nsd-num" id="nsd-readable">0</span><span class="nsd-lab">可精读</span></div>
+        </div>
+        <div class="nsd-cols">
+          <div class="nsd-block">
+            <span class="nsd-cap">近 7 天每日新增</span>
+            <div class="nsd-bars" id="nsd-bars"></div>
+          </div>
+          <div class="nsd-block">
+            <span class="nsd-cap">今日新增 · 按类型</span>
+            <div class="nsd-rows" id="nsd-src"></div>
+          </div>
+        </div>
+      </div>
+      <!-- v1.5 检索：标题/摘要多词模糊匹配 + 日期过滤（服务器模式） -->
+      <div class="ns-search" id="ns-search" hidden>
+        <input class="ns-q" id="ns-q" type="search" placeholder="检索新闻：标题 / 摘要关键词，多词空格分隔" maxlength="60">
+        <select class="ns-date" id="ns-date-mode" title="按发布日期过滤">
+          <option value="">全部日期</option>
+          <option value="today">今天</option>
+          <option value="7">近 7 天</option>
+          <option value="30">近 30 天</option>
+          <option value="date">指定日期…</option>
+        </select>
+        <input class="ns-date" id="ns-date" type="date" hidden>
+        <button class="ns-go" id="ns-go">检索</button>
+        <button class="ns-reset" id="ns-reset" hidden>清除</button>
+      </div>
       <div class="ns-chips" id="ns-chips"></div>
       <div class="ns-list" id="ns-list"></div>
       <p class="ns-note" id="ns-note"></p>
@@ -507,12 +540,74 @@
   const nsRefresh = document.getElementById("ns-refresh");
   const IS_SERVER = location.protocol === "http:" || location.protocol === "https:";
   let nsTopic = "", nsItems = [], nsTopics = [];
+  /* v1.5 检索状态 */
+  let nsQuery = "", nsDateVal = "";
+  const nsSearch = document.getElementById("ns-search");
+  const nsQ = document.getElementById("ns-q");
+  const nsDateMode = document.getElementById("ns-date-mode");
+  const nsDate = document.getElementById("ns-date");
+  const nsGo = document.getElementById("ns-go");
+  const nsReset = document.getElementById("ns-reset");
+  /* v1.5 表盘 */
+  const nsDash = document.getElementById("ns-dash");
+  const nsdToday = document.getElementById("nsd-today");
+  const nsdWeek = document.getElementById("nsd-week");
+  const nsdTotal = document.getElementById("nsd-total");
+  const nsdReadable = document.getElementById("nsd-readable");
+  const nsdBars = document.getElementById("nsd-bars");
+  const nsdSrc = document.getElementById("nsd-src");
 
   function fmtDate(iso) {
     if (!iso) return "";
     const d = new Date(iso);
     if (isNaN(d)) return "";
     return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  }
+
+  /* ---- 表盘：今日/近7天新增、类型分布（数据来自 /api/news/stats） ---- */
+  async function loadStats() {
+    if (!IS_SERVER) return;
+    try {
+      const r = await fetch("/api/news/stats", { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) return;
+      const s = await r.json();
+      if (!s.ok) return;
+      nsDash.hidden = false;
+      nsdToday.textContent = s.today.total;
+      nsdWeek.textContent = s.days.reduce((a, x) => a + x.n, 0);
+      nsdTotal.textContent = s.total;
+      nsdReadable.textContent = s.readable;
+      const max = Math.max(1, ...s.days.map(x => x.n));
+      nsdBars.innerHTML = s.days.map(x =>
+        '<div class="nsd-bar" title="' + x.d + ' 新增 ' + x.n + ' 条">' +
+          '<i style="height:' + Math.max(4, Math.round(x.n / max * 54)) + 'px"></i>' +
+          "<em>" + x.d.slice(5).replace("-", "/") + "</em></div>").join("");
+      const tmax = Math.max(1, ...s.today.bySource.map(x => x.n));
+      nsdSrc.innerHTML = s.today.bySource.length
+        ? s.today.bySource.map(x =>
+            '<div class="nsd-tr" title="' + escHtml(x.k) + "：今日新增 " + x.n + ' 条">' +
+              '<span class="nsd-tk">' + escHtml(x.k) + "</span>" +
+              '<i style="width:' + Math.max(8, Math.round(x.n / tmax * 100)) + '%"></i>' +
+              "<b>" + x.n + "</b></div>").join("")
+        : '<p class="nsd-nil">今日暂无新增——点「刷新」立即抓取</p>';
+    } catch (e) { /* 表盘失败不影响新闻列表 */ }
+  }
+
+  /* ---- 检索条件 → 查询串 ---- */
+  function newsQuery() {
+    let qs = "limit=60";
+    if (nsTopic) qs += "&topic=" + encodeURIComponent(nsTopic);
+    if (nsQuery) qs += "&q=" + encodeURIComponent(nsQuery);
+    const dm = nsDateMode.value;
+    if (dm === "today") {
+      const d = new Date();
+      qs += "&date=" + d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+    } else if (dm === "date" && nsDateVal) {
+      qs += "&date=" + nsDateVal;
+    } else if (/^\d+$/.test(dm)) {
+      qs += "&days=" + dm;
+    }
+    return qs;
   }
   function renderNews() {
     const items = nsTopic ? nsItems.filter(x => x.tp === nsTopic) : nsItems;
@@ -547,9 +642,15 @@
     nsTopics = payload.topics || [...new Set(nsItems.map(x => x.tp))];
     nsBadge.textContent = live ? "实时" : "快照";
     nsBadge.classList.toggle("snap", !live);
+    const filtering = payload.q || payload.date || payload.days;
     nsNote.textContent = live
-      ? "来源：CGTN 八版块、China Daily 七频道与 gCaptain/Splash247/Hellenic/Loadstar/Container News 五大港航物流媒体（共 " + (payload.total || nsItems.length) +
-        " 条已入库，" + (payload.readable || 0) + " 条可站内精读，持续累积）；「精读」站内阅读，或点标题跳原文。"
+      ? (filtering
+          ? "检索" + (payload.q ? "「" + payload.q + "」" : "") +
+            (payload.date ? "（" + payload.date + "）" : "") + (payload.days ? "（近 " + payload.days + " 天）" : "") +
+            "：命中 " + (payload.matched != null ? payload.matched : nsItems.length) + " 条，当前展示 " + nsItems.length +
+            " 条（库共 " + (payload.total || 0) + " 条）。清除条件后恢复默认列表。"
+          : "来源：CGTN 八版块、China Daily 七频道与 gCaptain/Splash247/Hellenic/Loadstar/Container News 五大港航物流媒体（共 " + (payload.total || nsItems.length) +
+            " 条已入库，" + (payload.readable || 0) + " 条可站内精读，持续累积）；「精读」站内阅读，或点标题跳原文。")
       : "当前为内置快照（" + nsItems.length + " 条）；启动 node server/server.js 后可实时刷新、抓取 China Daily 与港航媒体并精读全文。";
     nsRefresh.hidden = !IS_SERVER;
     renderNews();
@@ -558,7 +659,7 @@
   async function loadNews(force) {
     if (IS_SERVER) {
       try {
-        const q = "/api/news?limit=60" + (nsTopic ? "&topic=" + encodeURIComponent(nsTopic) : "") + (force ? "&refresh=1" : "");
+        const q = "/api/news?" + newsQuery() + (force ? "&refresh=1" : "");
         const r = await fetch(q, { signal: AbortSignal.timeout(20000) });
         if (r.ok) { applyNews(await r.json(), true); return; }
       } catch (e) { /* 超时或网络异常 → 落回快照 */ }
@@ -572,8 +673,37 @@
 
   nsRefresh.addEventListener("click", () => {
     nsRefresh.textContent = "刷新中…";
-    loadNews(true).then(() => { nsRefresh.textContent = "刷新"; });
+    loadNews(true).then(() => { nsRefresh.textContent = "刷新"; loadStats(); });
   });
+
+  /* ---- 检索交互：Enter / 按钮 / 日期模式切换 / 清除 ---- */
+  if (IS_SERVER) {
+    nsSearch.hidden = false;
+    const doSearch = () => {
+      nsQuery = nsQ.value.trim();
+      nsGo.textContent = "检索中…";
+      loadNews(false).then(() => {
+        nsGo.textContent = "检索";
+        nsReset.hidden = !(nsQuery || nsDateMode.value);
+      });
+    };
+    nsGo.addEventListener("click", doSearch);
+    nsQ.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+    nsDateMode.addEventListener("change", () => {
+      nsDateVal = "";
+      nsDate.hidden = nsDateMode.value !== "date";
+      if (nsDateMode.value !== "date") doSearch();
+    });
+    nsDate.addEventListener("change", () => { nsDateVal = nsDate.value; if (nsDateVal) doSearch(); });
+    nsReset.addEventListener("click", () => {
+      nsQuery = ""; nsDateVal = "";
+      nsQ.value = ""; nsDateMode.value = ""; nsDate.value = ""; nsDate.hidden = true;
+      nsReset.hidden = true;
+      loadNews(false);
+    });
+  }
+
+  loadStats();
 
   nsList.addEventListener("click", e => {
     const btn = e.target.closest(".ns-read");

@@ -346,6 +346,7 @@
       const [ov, us] = await Promise.all([api("/api/admin/overview"), api("/api/admin/users")]);
       if (ov.status === 401 || us.status === 401) { gate(true); $("ad-err").textContent = "登录已过期，请重新登录"; return; }
       if (ov.status === 403 || us.status === 403) { MODE = "self"; return loadSelf(); }
+      gate(false);
       MODE = "admin"; applyMode();
       if (ov.j.ok) kpis(ov.j);
       if (us.j.ok) { USERS = us.j.users || []; renderTable(); }
@@ -358,6 +359,7 @@
       const me = await api("/api/me/usage");
       if (me.status === 401) { gate(true); $("ad-err").textContent = "登录已过期，请重新登录"; return; }
       if (!me.j.ok) return;
+      gate(false);
       MODE = "self"; applyMode();
       const u = me.j.user;
       ME = u.name;

@@ -2,7 +2,7 @@
 
 > 用认知科学把英语长在记忆里 —— SM-2 间隔重复 × 分级沉浸阅读 × 主动回忆测验
 
-![version](https://img.shields.io/badge/version-1.6.0-4F46E5) ![license](https://img.shields.io/badge/license-MIT-22C55E) ![node](https://img.shields.io/badge/node-%E2%89%A522-1DA851) ![deps](https://img.shields.io/badge/deps-zero-FFB01F)
+![version](https://img.shields.io/badge/version-1.6.1-4F46E5) ![license](https://img.shields.io/badge/license-MIT-22C55E) ![node](https://img.shields.io/badge/node-%E2%89%A522-1DA851) ![deps](https://img.shields.io/badge/deps-zero-FFB01F)
 
 **EverWord** 是一个科学记忆驱动的英语学习平台：每日单词按遗忘曲线自动排程，分级文章支持悬浮取词与全文朗读，每日测验主动提取记忆，四六级 / 专八 / 雅思题库整卷练习。**零第三方依赖**——前端双击即用，后端一个文件，一条命令启动。
 

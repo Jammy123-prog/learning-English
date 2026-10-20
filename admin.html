@@ -118,6 +118,20 @@
     }
     .ad-del:hover { transform: translateY(-1px); background: #FECACA; }
     .ad-del:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .ad-mode {
+      margin-bottom: 14px; padding: 11px 16px; border-radius: 14px;
+      font: 700 12.5px var(--font-body); color: #8A5B06;
+      background: var(--yellow-a); border: 2px solid rgba(255, 255, 255, .9);
+    }
+    .ad-promote, .ad-demote {
+      border: 2px solid rgba(255, 255, 255, .92); cursor: pointer;
+      font: 800 11px var(--font-body); padding: 5px 12px; border-radius: 999px;
+      transition: transform .16s var(--ease-bounce), background .16s;
+    }
+    .ad-promote { color: #fff; background: linear-gradient(175deg, #818CF8, #4F46E5); box-shadow: 2px 3px 7px rgba(79, 70, 229, .35); }
+    .ad-promote:hover { transform: translateY(-1px); }
+    .ad-demote { color: #4A4690; background: var(--lilac-a); }
+    .ad-demote:hover { transform: translateY(-1px); background: var(--lilac-b); }
 
     @media (max-width: 900px) { .ad-kpis { grid-template-columns: repeat(3, 1fr); } }
     @media (max-width: 560px) { .ad-kpis { grid-template-columns: repeat(2, 1fr); } }
@@ -147,6 +161,7 @@
 
     <!-- 数据区 -->
     <div id="ad-main" hidden>
+      <div class="ad-mode" id="ad-mode" hidden>个人视图：当前账号不是管理员，仅可查看自己的使用数据；由管理员授予权限后可见全部账号。</div>
       <div class="ad-kpis" id="ad-kpis"></div>
       <div class="ad-card">
         <div class="ad-card-head">
@@ -175,9 +190,9 @@
       + " " + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
   const fmtKB = n => n ? (n >= 1024 ? (n / 1024).toFixed(1) + " KB" : n + " B") : "—";
 
-  let USERS = [], sortKey = "syncedAt", sortAsc = false, timer = null;
-  const ME = (() => { try { return localStorage.getItem("ev_name") || ""; } catch (e) { return ""; } })();
-  const isAdmin = (() => { try { return localStorage.getItem("ev_role") === "admin"; } catch (e) { return false; } })();
+  let USERS = [], sortKey = "syncedAt", sortAsc = false;
+  let MODE = "admin";   /* admin = 全部账号视图；self = 个人视图（仅自身数据） */
+  let ME = (() => { try { return localStorage.getItem("ev_name") || ""; } catch (e) { return ""; } })();
   const hasTok = (() => { try { return !!localStorage.getItem("ev_token"); } catch (e) { return false; } })();
 
   async function api(path) {
@@ -197,9 +212,11 @@
       const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, password: pass }) });
       const j = await r.json().catch(() => ({}));
       if (r.status !== 200) { $("ad-err").textContent = j.msg || "登录失败"; return; }
-      if ((j.role || "user") !== "admin") { $("ad-err").textContent = "该账号不是管理员（首个注册账号自动成为管理员）"; return; }
-      try { localStorage.setItem("ev_token", j.token); localStorage.setItem("ev_name", j.name); localStorage.setItem("ev_role", j.role); } catch (e) {}
-      gate(false); load();
+      try { localStorage.setItem("ev_token", j.token); localStorage.setItem("ev_name", j.name); localStorage.setItem("ev_role", j.role || "user"); } catch (e) {}
+      ME = j.name;
+      gate(false);
+      if ((j.role || "user") === "admin") { MODE = "admin"; load(); }
+      else { MODE = "self"; loadSelf(); }
     } catch (e) { $("ad-err").textContent = "网络异常：" + e.message; }
     finally { btn.disabled = false; btn.textContent = "登录管理后台"; }
   });
@@ -229,9 +246,14 @@
     { k: "acc", t: "正确率", render: u => u.acc == null ? '<span class="ad-muted">—</span>' : u.acc + "%<span class='ad-muted'>（" + u.quizTotal + " 题）</span>" },
     { k: "level", t: "设置", render: u => (u.level || '<span class="ad-muted">默认</span>') + (u.newPerDay ? " · " + u.newPerDay + " 词/天" : "") },
     { k: "bytes", t: "云存档", render: u => '<span class="ad-bar-cell"><span class="ad-bar"><i style="width:' + Math.min(100, Math.round(u.bytes / 5120)) + '%"></i></span><span class="ad-muted">' + fmtKB(u.bytes) + "</span></span>" },
-    { k: "id", t: "操作", render: u => u.name === ME
-        ? '<span class="ad-muted">当前账号</span>'
-        : '<button class="ad-del" data-id="' + u.id + '" data-name="' + esc(u.name) + '">删除</button>' }
+    { k: "id", t: "操作", render: u => {
+        if (MODE !== "admin") return '<span class="ad-muted">—</span>';
+        if (u.name === ME) return '<span class="ad-muted">当前账号</span>';
+        return (u.role === "admin"
+            ? '<button class="ad-demote" data-id="' + u.id + '" data-name="' + esc(u.name) + '" title="取消管理员权限">取消管理员</button> '
+            : '<button class="ad-promote" data-id="' + u.id + '" data-name="' + esc(u.name) + '" title="授予管理员权限">设为管理员</button> ')
+          + '<button class="ad-del" data-id="' + u.id + '" data-name="' + esc(u.name) + '">删除</button>';
+      } }
   ];
   function renderTable() {
     const kw = ($("ad-filter").value || "").trim().toLowerCase();
@@ -257,7 +279,7 @@
   });
   $("ad-filter").addEventListener("input", renderTable);
 
-  /* 删除账号：确认后调用 DELETE /api/admin/user?id=（连带清理云同步状态） */
+  /* 删除账号 / 角色变更（管理员视图） */
   $("ad-tbody").addEventListener("click", async e => {
     const btn = e.target.closest(".ad-del");
     if (!btn) return;
@@ -269,6 +291,23 @@
       if (r.status === 200) load();
       else { const j = await r.json().catch(() => ({})); alert("删除失败：" + (j.msg || r.status)); btn.disabled = false; btn.textContent = "删除"; }
     } catch (e2) { alert("网络异常：" + e2.message); btn.disabled = false; btn.textContent = "删除"; }
+  });
+  $("ad-tbody").addEventListener("click", async e => {
+    const btn = e.target.closest(".ad-promote,.ad-demote");
+    if (!btn) return;
+    const toAdmin = btn.classList.contains("ad-promote");
+    const act = toAdmin ? "授予「" + btn.dataset.name + "」管理员权限" : "取消「" + btn.dataset.name + "」管理员权限";
+    if (!confirm("确定" + act + "？")) return;
+    btn.disabled = true;
+    try {
+      let tk = ""; try { tk = localStorage.getItem("ev_token") || ""; } catch (e2) {}
+      const r = await fetch("/api/admin/role", {
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + tk },
+        body: JSON.stringify({ id: Number(btn.dataset.id), role: toAdmin ? "admin" : "user" })
+      });
+      if (r.status === 200) load();
+      else { const j = await r.json().catch(() => ({})); alert("操作失败：" + (j.msg || r.status)); btn.disabled = false; }
+    } catch (e2) { alert("网络异常：" + e2.message); btn.disabled = false; }
   });
 
   /* ---- CSV 导出（Excel 友好：UTF-8 BOM） ---- */
@@ -288,23 +327,51 @@
     URL.revokeObjectURL(a.href);
   });
 
-  /* ---- 加载 ---- */
+  /* ---- 加载：管理员视图（全部账号） / 个人视图（仅自身） ---- */
+  function applyMode() {
+    const self = MODE === "self";
+    $("ad-mode").hidden = !self;
+    $("ad-tag").textContent = self ? "个人视图" : "ADMIN";
+  }
+  function kpisSelf(u) {
+    const items = [
+      ["今日学习", u.activeToday ? "已学习" : "未学习"],
+      ["连续天数", u.streak + " 天"], ["已学 / 卡片", u.learned + " / " + u.cards],
+      ["待复习", u.due], ["正确率", u.acc == null ? "—" : u.acc + "%"], ["云存档", fmtKB(u.bytes)]
+    ];
+    $("ad-kpis").innerHTML = items.map(x => '<div class="ad-kpi"><b>' + x[1] + "</b><span>" + x[0] + "</span></div>").join("");
+  }
   async function load() {
     try {
       const [ov, us] = await Promise.all([api("/api/admin/overview"), api("/api/admin/users")]);
       if (ov.status === 401 || us.status === 401) { gate(true); $("ad-err").textContent = "登录已过期，请重新登录"; return; }
-      if (ov.status === 403 || us.status === 403) { gate(true); $("ad-err").textContent = "该账号不是管理员"; return; }
+      if (ov.status === 403 || us.status === 403) { MODE = "self"; return loadSelf(); }
+      MODE = "admin"; applyMode();
       if (ov.j.ok) kpis(ov.j);
       if (us.j.ok) { USERS = us.j.users || []; renderTable(); }
     } catch (e) {
       $("ad-count").textContent = "加载失败：" + e.message;
     }
   }
-  $("ad-refresh").addEventListener("click", load);
+  async function loadSelf() {
+    try {
+      const me = await api("/api/me/usage");
+      if (me.status === 401) { gate(true); $("ad-err").textContent = "登录已过期，请重新登录"; return; }
+      if (!me.j.ok) return;
+      MODE = "self"; applyMode();
+      const u = me.j.user;
+      ME = u.name;
+      kpisSelf(u);
+      USERS = [u];
+      renderTable();
+    } catch (e) {
+      $("ad-count").textContent = "加载失败：" + e.message;
+    }
+  }
+  $("ad-refresh").addEventListener("click", () => (MODE === "self" ? loadSelf() : load()));
 
   (function init() {
-    if (isAdmin && hasTok) { gate(false); load(); timer = setInterval(load, 60000); }
-    else if (hasTok) { /* 有令牌但角色未记录 → 试探一次 */ gate(false); load(); }
+    if (hasTok) load();   /* load 内部处理 401 → 登录闸口；403 → 自动转个人视图 */
     else gate(true);
   })();
   </script>

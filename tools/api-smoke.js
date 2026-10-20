@@ -126,6 +126,13 @@ async function call(method, path, body, token) {
   const js = await fetch(BASE + "/js/vocab-catalog.js");
   ok(js.status === 200 && (await js.text()).includes("EV_CATALOG"), "词库目录静态资源可访问");
 
+  /* 7b. 个人视图与角色变更权限隔离 */
+  const meU = await call("GET", "/api/me/usage", null, tok);
+  ok(meU.status === 200 && meU.j.ok && meU.j.user && meU.j.user.name === NAME,
+    "个人使用数据接口返回自身（卡片 " + ((meU.j.user && meU.j.user.cards) || 0) + " / 待复习 " + ((meU.j.user && meU.j.user.due) || 0) + "）");
+  const roleTry = await call("POST", "/api/admin/role", { id: 999999, role: "admin" }, tok);
+  ok(roleTry.status === 403, "非管理员调用角色变更返回 403");
+
   /* 8. 自清理：注销本次测试账号，不在 user 表留下 apismoke_* 残留 */
   const del = await call("DELETE", "/api/account", null, tok);
   ok(del.status === 200 && del.j.ok, "注销测试账号成功（自清理，不留残留成员）");

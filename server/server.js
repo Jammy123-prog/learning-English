@@ -7,6 +7,8 @@
    - 账号：POST /api/register  POST /api/login（scrypt 口令散列 + HMAC-SHA256 令牌，30 天）
    - 云同步：GET/PUT /api/state（复习卡片 / 统计 / 每日进度 / 设置，最后写入胜出）
    - 管理员：GET /api/admin/overview（账号总览）  GET /api/admin/users（账号清单 + 学习情况）
+             POST /api/admin/role（授予/取消管理员）  DELETE /api/admin/user?id=（删除账号）
+             GET /api/me/usage（个人视图：普通账号仅见自身使用数据）
              首个注册用户自动成为管理员，或 EV_ADMIN=用户名 指定
    - 词库目录：GET /api/words?level=CET-4|CET-6|TEM-8|IELTS（SQLite 种子库）
               GET /api/words?q=xxx&limit=50（全库模糊检索：精确/前缀/包含/子序列/编辑距离）
@@ -507,6 +509,35 @@ async function refreshNews(force) {
 }
 
 /* ---------------- API 处理 ---------------- */
+/* 账号使用情况聚合：解析 user_state JSON → 卡片 / 连续 / 正确率 / 今日活动 / 设置
+   （管理员看全部账号、普通账号看自己，共用同一口径） */
+function usageFromRow(r) {
+  const now = new Date();
+  const p2 = n => String(n).padStart(2, "0");
+  const todayKey = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate());
+  let st = {};
+  try { st = JSON.parse(r.raw || "{}") || {}; } catch (e) {}
+  const cards = st.srs && st.srs.cards ? Object.values(st.srs.cards) : [];
+  const stats = st.stats || {};
+  const prog = st.prog || {};
+  const settings = st.settings || {};
+  return {
+    id: r.id, name: r.name, role: r.role || "user",
+    createdAt: r.created_at, lastSeen: r.last_seen, syncedAt: r.synced_at,
+    bytes: Number(r.bytes || 0),
+    cards: cards.length,
+    learned: cards.filter(c => c.reps >= 1).length,
+    due: cards.filter(c => (c.due || 0) <= Date.now()).length,
+    streak: stats.streak | 0,
+    best: stats.best | 0,
+    acc: stats.quizTotal ? Math.round((stats.quizCorrect || 0) / stats.quizTotal * 100) : null,
+    quizTotal: stats.quizTotal | 0,
+    activeToday: prog.date === todayKey && ((prog.words | 0) > 0 || (prog.read || []).length > 0 || prog.quiz === true),
+    level: settings.level || "",
+    newPerDay: settings.newPerDay || null
+  };
+}
+
 async function handleApi(req, res, url, body) {
   const p = url.pathname;
 
@@ -704,33 +735,29 @@ async function handleApi(req, res, url, body) {
       FROM user u LEFT JOIN user_state s ON s.user_id = u.id
       ORDER BY (s.updated_at IS NULL), s.updated_at DESC, u.id
     `).all();
-    const now = new Date();
-    const p2 = n => String(n).padStart(2, "0");
-    const todayKey = now.getFullYear() + "-" + p2(now.getMonth() + 1) + "-" + p2(now.getDate());
-    const users = rows.map(r => {
-      let st = {};
-      try { st = JSON.parse(r.raw || "{}") || {}; } catch (e) {}
-      const cards = st.srs && st.srs.cards ? Object.values(st.srs.cards) : [];
-      const stats = st.stats || {};
-      const prog = st.prog || {};
-      const settings = st.settings || {};
-      return {
-        id: r.id, name: r.name, role: r.role || "user",
-        createdAt: r.created_at, lastSeen: r.last_seen, syncedAt: r.synced_at,
-        bytes: Number(r.bytes || 0),
-        cards: cards.length,
-        learned: cards.filter(c => c.reps >= 1).length,
-        due: cards.filter(c => (c.due || 0) <= Date.now()).length,
-        streak: stats.streak | 0,
-        best: stats.best | 0,
-        acc: stats.quizTotal ? Math.round((stats.quizCorrect || 0) / stats.quizTotal * 100) : null,
-        quizTotal: stats.quizTotal | 0,
-        activeToday: prog.date === todayKey && ((prog.words | 0) > 0 || (prog.read || []).length > 0 || prog.quiz === true),
-        level: settings.level || "",
-        newPerDay: settings.newPerDay || null
-      };
-    });
-    return json(res, 200, { ok: true, count: users.length, users });
+    return json(res, 200, { ok: true, count: rows.length, users: rows.map(usageFromRow) });
+  }
+
+  /* ---- 个人视图：普通账号进入后台只看自己的使用数据 ---- */
+  if (p === "/api/me/usage" && req.method === "GET") {
+    const r = db.prepare(`
+      SELECT u.id, u.name, u.role, u.created_at, u.last_seen,
+             s.updated_at AS synced_at, LENGTH(s.data) AS bytes, s.data AS raw
+      FROM user u LEFT JOIN user_state s ON s.user_id = u.id WHERE u.id = ?
+    `).get(user.uid);
+    return json(res, 200, { ok: true, user: usageFromRow(r) });
+  }
+
+  /* ---- 管理员：授予 / 取消管理员权限 ---- */
+  if (p === "/api/admin/role" && req.method === "POST") {
+    if (!user.isAdmin) return bad(res, "需要管理员权限", 403);
+    const id = parseInt(body.id, 10);
+    const role = body.role === "admin" ? "admin" : "user";
+    if (!id || id < 1) return bad(res, "参数 id 非法");
+    if (id === user.uid && role !== "admin") return bad(res, "不能取消自己的管理员权限（请由其他管理员操作）", 400);
+    const info = db.prepare("UPDATE user SET role = ? WHERE id = ?").run(role, id);
+    if (!info.changes) return bad(res, "账号不存在", 404);
+    return json(res, 200, { ok: true, id, role });
   }
 
   /* ---- 管理员删除账号（不能删自己；连带清理云同步状态与同步日志） ---- */

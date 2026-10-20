@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=1.6.2">
+<link rel="stylesheet" href="css/styles.css?v=1.7.0">
 <script>document.documentElement.className += " js";</script>
 </head>
 <body data-page="words">
@@ -54,7 +54,7 @@
     <div class="search-panel">
       <div class="sp-box">
         <svg class="sp-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="w-search" type="search" placeholder="搜索 10,000+ 词目：abandon、resil、通胀……支持拼写模糊与中文释义" autocomplete="off" spellcheck="false" aria-label="搜索词库">
+        <input id="w-search" type="search" placeholder="搜索 11,600+ 词：abandon、resil、通胀……支持拼写模糊与中文释义" autocomplete="off" spellcheck="false" aria-label="搜索词库">
         <button class="sp-clear" id="sp-clear" hidden>清空</button>
       </div>
       <p class="sp-meta" id="sp-meta" hidden></p>
@@ -71,14 +71,14 @@
   <p class="foot-tag">科学记忆 · 沉浸阅读 · 主动回忆</p>
 </footer>
 
-<script src="js/icons.js?v=1.6.2"></script>
-<script src="js/data.js?v=1.6.2"></script>
-<script src="js/vocab-catalog.js?v=1.6.2"></script>
-<script src="js/api.js?v=1.6.2"></script>
-<script src="js/srs.js?v=1.6.2"></script>
-<script src="js/settings.js?v=1.6.2"></script>
-<script src="js/tts.js?v=1.6.2"></script>
-<script src="js/app.js?v=1.6.2"></script>
+<script src="js/icons.js?v=1.7.0"></script>
+<script src="js/data.js?v=1.7.0"></script>
+<script src="js/vocab-full.js?v=1.7.0"></script>
+<script src="js/api.js?v=1.7.0"></script>
+<script src="js/srs.js?v=1.7.0"></script>
+<script src="js/settings.js?v=1.7.0"></script>
+<script src="js/tts.js?v=1.7.0"></script>
+<script src="js/app.js?v=1.7.0"></script>
 <script>
 (function () {
   const mount = document.getElementById("session");
@@ -90,18 +90,27 @@
   const sDet = document.getElementById("sp-detail");
   const sClr = document.getElementById("sp-clear");
 
-  /* 索引：精选词（含释义）∪ 目录词目（多级别标签） */
+  /* 索引：精选 160 详解词 ∪ 全量词库 EV_FULL（11,600+ 词，音标/释义/双语例句） */
   const IDX = (() => {
     const map = new Map();
     WORDS.forEach(x => map.set(x.w.toLowerCase(), {
       w: x.w, ipa: x.ipa, pos: x.pos, def: x.def, ex: x.ex, exZh: x.exZh, lvs: [x.lv], cur: true
     }));
-    const CAT = (typeof EV_CATALOG !== "undefined" && EV_CATALOG) ? EV_CATALOG : { levels: {} };
-    Object.keys(CAT.levels || {}).forEach(lv => (CAT.levels[lv] || []).forEach(w => {
-      const e = map.get(w);
-      if (e) { if (!e.lvs.includes(lv)) e.lvs.push(lv); }
-      else map.set(w, { w, ipa: "", pos: "", def: "", ex: "", exZh: "", lvs: [lv], cur: false });
-    }));
+    (typeof EV_FULL !== "undefined" && EV_FULL && Array.isArray(EV_FULL.words) ? EV_FULL.words : []).forEach(x => {
+      const k = x.w.toLowerCase();
+      const lvs = x.lvs ? x.lvs.split(",") : [x.lv];
+      const e = map.get(k);
+      if (e) {
+        lvs.forEach(l => { if (!e.lvs.includes(l)) e.lvs.push(l); });
+        if (!e.def && x.def) {
+          e.ipa = e.ipa || x.ipa || ""; e.pos = e.pos || x.pos || "";
+          e.def = x.def; e.ex = e.ex || x.ex || ""; e.exZh = e.exZh || x.zh || ""; e.cur = true;
+        }
+      } else {
+        map.set(k, { w: x.w, ipa: x.ipa || "", pos: x.pos || "", def: x.def || "",
+                     ex: x.ex || "", exZh: x.zh || "", lvs, cur: !!x.def });
+      }
+    });
     return [...map.values()];
   })();
 
@@ -162,7 +171,7 @@
       '<button class="sr-row" data-i="' + i + '">' +
         '<span class="sr-w">' + escHtml(x.e.w) + "</span>" +
         '<span class="sr-lvs">' + x.e.lvs.map(lvChip).join("") + "</span>" +
-        '<span class="sr-prev">' + (x.e.cur ? escHtml(x.e.def) : "目录词 · 点击联网查询释义") + "</span>" +
+        '<span class="sr-prev">' + (x.e.def ? escHtml(x.e.def) : "暂无释义 · 点击联网查询") + "</span>" +
         (x.e.cur ? '<span class="sr-tag">详解</span>' : "") +
       "</button>").join("");
     sRes.querySelectorAll(".sr-row").forEach(b =>
@@ -186,12 +195,12 @@
         </span>
       </div>
       <div class="sd-def" id="sd-def">${
-        e.cur
+        e.def
           ? '<span class="sd-pos">' + escHtml(e.pos || "") + "</span>" + escHtml(e.def)
           : '<span class="sd-note load" id="sd-note">正在联网查询释义…</span>'
       }</div>
       <div class="sd-ex" id="sd-ex" hidden></div>
-      <p class="sd-note" id="sd-src">${e.cur ? "来自精选词库：含音标、释义与例句" : "来自词库目录（" + e.lvs.join(" / ") + "）"}</p>`;
+      <p class="sd-note" id="sd-src">${e.def ? "含音标、词性释义" + (e.ex ? "与双语例句" : "") + "（全量词库）" : "全量词库暂无释义，尝试联网补充"}</p>`;
     document.getElementById("sd-say").addEventListener("click", () => {
       if (!TTS.speak(e.w)) toast("当前浏览器不支持语音合成");
     });
@@ -203,12 +212,12 @@
       });
       toast(added ? "已加入生词本，明日开始复习" : "已在生词本中");
     });
-    if (e.cur && e.ex) {
+    if ((e.cur || e.def) && e.ex) {
       const ex = document.getElementById("sd-ex");
       ex.hidden = false;
       ex.innerHTML = "<p>" + escHtml(e.ex) + "</p>" + (e.exZh ? '<p class="zh">' + escHtml(e.exZh) + "</p>" : "");
     }
-    if (!e.cur) fetchDict(e);
+    if (!e.def) fetchDict(e);
   }
 
   function parseDictApi(a) {

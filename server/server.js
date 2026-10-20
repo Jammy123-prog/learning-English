@@ -121,30 +121,29 @@ function seedWords() {
 }
 seedWords();
 
-/* 词库目录种子：从 js/vocab-catalog.js 提取 CET-4/CET-6/IELTS 全量词目灌入
-   （仅词目 + 级别归属，无释义——释义由前端按需查询 dictionaryapi.dev 缓存） */
+/* 全量词库种子：从 js/vocab-full.js 灌入 CET-4/CET-6/TEM-8/IELTS 全量词汇
+   （词目 + 音标 + 词性释义 + 双语例句；替代 v1.2 的仅词目 catalog 模式） */
 function seedCatalog() {
-  const fp = path.join(ROOT, "js", "vocab-catalog.js");
-  if (!fs.existsSync(fp)) return;
-  const m = fs.readFileSync(fp, "utf8").match(/window\.EV_CATALOG\s*=\s*([\s\S]+?);\s*$/);
-  if (!m) return console.log("[ev] 词库目录文件格式异常，跳过");
+  const fp = path.join(ROOT, "js", "vocab-full.js");
+  if (!fs.existsSync(fp)) return console.log("[ev] 未找到 js/vocab-full.js，跳过全量词库种子");
+  const m = fs.readFileSync(fp, "utf8").match(/window\.EV_FULL\s*=\s*([\s\S]+?);\s*$/);
+  if (!m) return console.log("[ev] 全量词库文件格式异常，跳过");
   let data;
-  try { data = JSON.parse(m[1]); } catch (e) { return console.log("[ev] 词库目录 JSON 解析失败，跳过"); }
-  const have = db.prepare("SELECT COUNT(*) AS c FROM word WHERE source = 'catalog'").get().c;
-  const map = new Map();
-  for (const k of ["CET-4", "CET-6", "IELTS"]) (data.levels[k] || []).forEach(w => {
-    if (!map.has(w)) map.set(w, []);
-    map.get(w).push(k);
-  });
-  if (have >= map.size) return;
+  try { data = JSON.parse(m[1]); } catch (e) { return console.log("[ev] 全量词库 JSON 解析失败，跳过"); }
+  const total = (data.words || []).length;
+  const have = db.prepare("SELECT COUNT(*) AS c FROM word WHERE source IN ('catalog','full')").get().c;
+  if (have >= total) return;
+  db.exec("DELETE FROM word WHERE source IN ('catalog','full')");
   const ins = db.prepare(
-    "INSERT OR IGNORE INTO word (headword, ipa, pos, definition, example, example_zh, level, source) VALUES (?, NULL, NULL, '', NULL, NULL, ?, 'catalog')"
+    "INSERT OR IGNORE INTO word (headword, ipa, pos, definition, example, example_zh, level, source) VALUES (?, ?, ?, ?, ?, ?, ?, 'full')"
   );
   db.exec("BEGIN");
   let n = 0;
-  map.forEach((lvs, w) => { if (ins.run(w, lvs.join(",")).changes > 0) n++; });
+  for (const x of (data.words || [])) {
+    if (ins.run(x.w, x.ipa || null, x.pos || null, x.def || "", x.ex || null, x.zh || null, x.lvs || x.lv).changes > 0) n++;
+  }
   db.exec("COMMIT");
-  console.log("[ev] 词库目录已灌入 SQLite：" + n + " 词目（CET-4/CET-6/IELTS 去重 " + map.size + "）");
+  console.log("[ev] 全量词库已灌入 SQLite：" + n + " 词（unique " + total + "）");
 }
 seedCatalog();
 
@@ -579,7 +578,7 @@ async function handleApi(req, res, url, body) {
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
     const lv = url.searchParams.get("level");
     const LEGAL = ["CET-4", "CET-6", "TEM-8", "IELTS"];
-    const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit"), 10) || 100));
+    const limit = Math.min(5000, Math.max(1, parseInt(url.searchParams.get("limit"), 10) || 100));
     const COLS = "id, headword, ipa, pos, definition, example, example_zh, level";
 
     if (q) {

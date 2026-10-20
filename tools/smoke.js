@@ -8,8 +8,12 @@ const root = path.join(__dirname, "..");
 const data = fs.readFileSync(path.join(root, "js", "data.js"), "utf8");
 const srs = fs.readFileSync(path.join(root, "js", "srs.js"), "utf8");
 const set = fs.readFileSync(path.join(root, "js", "settings.js"), "utf8");
-const api = new Function(data + "\n" + srs + "\n" + set + "\n;return {WORDS:WORDS,SRS:SRS,Stats:Stats,Settings:Settings,NEW_PER_DAY:NEW_PER_DAY};")();
-const { WORDS, SRS, Stats, Settings, NEW_PER_DAY } = api;
+const fullFp = path.join(root, "js", "vocab-full.js");
+const full = fs.existsSync(fullFp) ? fs.readFileSync(fullFp, "utf8") : "";
+const api = new Function("window",
+  data + "\n" + full + "\n" + srs + "\n" + set +
+  "\n;return {WORDS:WORDS,SRS:SRS,Stats:Stats,Settings:Settings,NEW_PER_DAY:NEW_PER_DAY,EV_FULL:window.EV_FULL};")({});
+const { WORDS, SRS, Stats, Settings, NEW_PER_DAY, EV_FULL } = api;
 
 let fails = 0;
 const ok = (cond, msg) => {
@@ -63,18 +67,19 @@ ok(q4.length === 5 && q4.every(x => x.isNew), "下一批 +5 后队列补 5 个�
 q4.forEach(x => SRS.grade(x.word.w, 3));
 ok(SRS.queue().length === 0, "加批学完后队列再次清空");
 
-/* 9. 级别过滤：切到 TEM-8 → 新词全部来自专八词库 */
+/* 9. 级别过滤：切到 TEM-8 → 新词全部来自专八词库（精选 40 + 全量词库 TEM-8 标签词） */
 Settings.set("level", "TEM-8");
 const q5 = SRS.queue();
-ok(q5.length > 0 && q5.every(x => x.isNew && x.word.lv === "TEM-8"),
+const isT8 = x => x.lv === "TEM-8" || (typeof x.lvs === "string" && x.lvs.split(",").includes("TEM-8"));
+ok(q5.length > 0 && q5.every(x => x.isNew && isT8(x.word)),
   "TEM-8 级别过滤：队列新词全部来自专八词库（实际 " + q5.length + "）");
 const ps8 = SRS.poolStats("TEM-8");
-ok(ps8.total === 40 && ps8.fresh === 40 && ps8.learned === 0,
+ok(ps8.total > 3900 && ps8.total < 5000 && ps8.fresh === ps8.total && ps8.learned === 0,
   "poolStats(TEM-8) 统计正确（total " + ps8.total + " / fresh " + ps8.fresh + " / learned " + ps8.learned + "）");
 const first8 = q5[0].word.w;
 SRS.grade(first8, 4);
 const ps8b = SRS.poolStats("TEM-8");
-ok(ps8b.learned === 1 && ps8b.fresh === 39, "学习后 poolStats(TEM-8) 更新（learned 1 / fresh 39）");
+ok(ps8b.learned === 1 && ps8b.fresh === ps8.total - 1, "学习后 poolStats(TEM-8) 更新（learned 1 / fresh " + (ps8.total - 1) + "）");
 
 /* 10. 生词本：非主库词入库，次日到期、今日队列不含；且不受级别过滤影响 */
 const added = SRS.addWord("aurora", { w: "aurora", ipa: "", pos: "n.", def: "极光", ex: "", exZh: "", lv: "阅读" });
@@ -82,7 +87,13 @@ ok(added && !SRS.isDue("aurora") && !SRS.queue().some(x => x.word.w === "aurora"
   "生词本词入库且明日到期（今日队列不含）");
 ok(SRS.addWord("aurora") === false, "重复加入返回 false");
 const psAll = SRS.poolStats("全部");
-ok(psAll.total === 160 + 1, "全部词库统计包含生词本附加词（实际 " + psAll.total + "）");
+ok(psAll.total === WORDS.length + EV_FULL.words.length + 1,
+  "全部词库统计 = 精选 " + WORDS.length + " + 全量 " + EV_FULL.words.length + " + 生词本 1（实际 " + psAll.total + "）");
+ok(EV_FULL.words.length > 11000 && EV_FULL.counts.unique === EV_FULL.words.length,
+  "全量词库规模校验（unique " + EV_FULL.counts.unique + " 词）");
+ok(EV_FULL.words.every(x => x.def), "全量词库 100% 含中文释义");
+const lvSum = ["CET-4", "CET-6", "TEM-8", "IELTS"].reduce((s, lv) => s + EV_FULL.counts[lv], 0);
+ok(lvSum > EV_FULL.words.length, "级别标签总数 " + lvSum + " 大于去重词数（多级别词存在）");
 
 /* 11. Settings 边界：越界值收敛到 1-50 */
 Settings.set("newPerDay", 999);

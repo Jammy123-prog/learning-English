@@ -54,9 +54,22 @@ const SRS = (() => {
     return c;
   }
 
-  /* 词库（可按级别过滤）+ 生词本附加词（阅读/测验中收藏的非主库词，始终保留） */
+  /* 词库（可按级别过滤）+ 生词本附加词（阅读/测验中收藏的非主库词，始终保留）
+     v1.5：主库 = 精选 160 详解词 + 全量词库 EV_FULL（CET-4/CET-6/TEM-8/IELTS 11,600+ 词），
+           级别过滤同时匹配主级别 lv 与多级别标签 lvs */
+  const EVFULL = (typeof EV_FULL !== "undefined" && EV_FULL && Array.isArray(EV_FULL.words)) ? EV_FULL
+    : (typeof window !== "undefined" && window.EV_FULL && Array.isArray(window.EV_FULL.words)) ? window.EV_FULL : null;
+  const FULL = EVFULL ? EVFULL.words : [];
+  const FULL_SET = new Set(FULL.map(x => x.w));
+  const hasLv = (x, level) => x.lv === level || (typeof x.lvs === "string" && x.lvs.split(",").indexOf(level) >= 0);
   function poolFor(level) {
-    const base = (!level || level === "全部") ? WORDS : WORDS.filter(x => x.lv === level);
+    let base;
+    if (!level || level === "全部") {
+      base = WORDS.concat(FULL);
+    } else {
+      base = WORDS.filter(x => x.lv === level || hasLv(x, level))
+        .concat(FULL.filter(x => hasLv(x, level)));
+    }
     return base.concat(Object.values(st.extra || {}));
   }
   /* 清理 10 天前的加批记录 */
@@ -92,7 +105,7 @@ const SRS = (() => {
     addWord(w, meta) {
       if (!st.cards[w]) {
         st.cards[w] = { ef: 2.5, reps: 0, ivl: 1, lapses: 0, due: startOfDay() + DAY };
-        if (meta && !WORDS.some(x => x.w === w)) {
+        if (meta && !WORDS.some(x => x.w === w) && !FULL_SET.has(w)) {
           if (!st.extra[w]) st.extra[w] = meta;
         }
         save(); return true;

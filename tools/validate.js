@@ -92,10 +92,36 @@ if (DAILY_FIXED.length < 6) add("每日固定题不足 6（实际 " + DAILY_FIXE
 /* ---- 词典键全小写 ---- */
 Object.keys(DICT).forEach(k => { if (k !== k.toLowerCase()) add("词典键非小写: " + k); });
 
+/* ---- 全量词库（vocab-full.js，v1.5）：唯一性 / 级别合法 / 释义覆盖 ---- */
+const fullFp = path.join(root, "js", "vocab-full.js");
+let fullStat = "";
+if (fs.existsSync(fullFp)) {
+  const win = {};
+  try { new Function("window", fs.readFileSync(fullFp, "utf8"))(win); } catch (e) { add("vocab-full.js 解析失败: " + e.message); }
+  const FV = win.EV_FULL;
+  if (!FV || !Array.isArray(FV.words)) add("EV_FULL 数据缺失");
+  else {
+    const fseen = new Set();
+    FV.words.forEach(x => {
+      if (!x.w || !/^[a-z][a-z'\-]*$/.test(x.w)) add("FULL 非法词目 " + (x.w || "(空)"));
+      if (fseen.has(x.w)) add("FULL 重复单词 " + x.w);
+      fseen.add(x.w);
+      if (!x.lv || !LEVELS.includes(x.lv)) add("FULL " + x.w + " 非法主级别 " + x.lv);
+      (x.lvs || "").split(",").forEach(l => { if (l && !LEVELS.includes(l)) add("FULL " + x.w + " 非法级别标签 " + l); });
+      if (!x.def) add("FULL " + x.w + " 缺释义");
+    });
+    if (FV.words.length < 10000) add("FULL 词量异常偏少: " + FV.words.length);
+    if (FV.counts && FV.counts.unique !== FV.words.length) add("FULL counts.unique 与词数不一致");
+    fullStat = " / 全量词库 " + FV.words.length + " 词";
+  }
+} else {
+  add("缺少 js/vocab-full.js（运行 node tools/fetch-vocab-full.js 生成）");
+}
+
 /* ---- 结果 ---- */
 if (errs.length) {
   console.error("校验失败 " + errs.length + " 项：");
   errs.forEach(m => console.error("  - " + m));
   process.exit(1);
 }
-console.log("OK · 词库 " + WORDS.length + " 词 / 文章 " + ARTICLES.length + " 篇 / 题目 " + ALL_Q.length + " 题 / 词典 " + Object.keys(DICT).length + " 条");
+console.log("OK · 词库 " + WORDS.length + " 词 / 文章 " + ARTICLES.length + " 篇 / 题目 " + ALL_Q.length + " 题 / 词典 " + Object.keys(DICT).length + " 条" + fullStat);

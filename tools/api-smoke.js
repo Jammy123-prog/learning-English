@@ -59,13 +59,15 @@ async function call(method, path, body, token) {
   const badtok = await call("GET", "/api/state", null, "abc.def");
   ok(badtok.status === 401, "伪造令牌返回 401");
 
-  /* 5. 词库目录与模糊检索 */
+  /* 5. 全量词库与模糊检索 */
   const wAll = await call("GET", "/api/words?limit=200");
-  ok(wAll.status === 200 && wAll.j.count === 200 && h.j.words > 5000, "全量目录已入库（health 总量 " + h.j.words + " 词），limit 分页生效");
-  const wT8 = await call("GET", "/api/words?level=TEM-8");
-  ok(wT8.status === 200 && wT8.j.count === 40 && wT8.j.words[0].level === "TEM-8", "TEM-8 过滤 40 词");
+  ok(wAll.status === 200 && wAll.j.count === 200 && h.j.words > 11000, "全量词库已入库（health 总量 " + h.j.words + " 词），limit 分页生效");
+  const wT8 = await call("GET", "/api/words?level=TEM-8&limit=5000");
+  ok(wT8.status === 200 && wT8.j.count > 3000 && wT8.j.words[0].level.includes("TEM-8"), "TEM-8 过滤命中全量专八词（" + (wT8.j.count || 0) + " 词）");
   const wC4 = await call("GET", "/api/words?level=CET-4&limit=200");
-  ok(wC4.status === 200 && wC4.j.count === 200 && wC4.j.words.some(x => (x.level || "").includes(",")), "CET-4 过滤含多级别目录词（逗号连接）");
+  ok(wC4.status === 200 && wC4.j.count === 200 && wC4.j.words.some(x => (x.level || "").includes(",")), "CET-4 过滤含多级别词（逗号连接）");
+  const wC4def = await call("GET", "/api/words?q=absorb");
+  ok(wC4def.status === 200 && wC4def.j.count > 0 && !!wC4def.j.words[0].definition, "全量词释义已入库（absorb 含 definition）");
   const wq1 = await call("GET", "/api/words?q=abandon");
   ok(wq1.status === 200 && wq1.j.count > 0 && wq1.j.words[0].headword === "abandon", "精确检索 abandon 命中首位");
   const wq2 = await call("GET", "/api/words?q=resil");
@@ -123,8 +125,8 @@ async function call(method, path, body, token) {
   /* 7. 静态页面 */
   const idx = await fetch(BASE + "/");
   ok(idx.status === 200 && (await idx.text()).includes("EverWord"), "静态首页可访问");
-  const js = await fetch(BASE + "/js/vocab-catalog.js");
-  ok(js.status === 200 && (await js.text()).includes("EV_CATALOG"), "词库目录静态资源可访问");
+  const js = await fetch(BASE + "/js/vocab-full.js");
+  ok(js.status === 200 && (await js.text()).includes("EV_FULL"), "全量词库静态资源可访问");
 
   /* 7b. 个人视图与角色变更权限隔离 */
   const meU = await call("GET", "/api/me/usage", null, tok);

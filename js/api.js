@@ -126,9 +126,19 @@ const EVSync = (() => {
 .ev-go:hover{transform:translateY(-2px)}
 .ev-go:disabled{opacity:.55;cursor:not-allowed;transform:none}
 .ev-alt{display:flex;gap:8px;margin-top:12px}
-.ev-alt button{flex:1;padding:10px 0;border-radius:999px;border:2px solid #C9CDEE;background:#fff;color:#4F46E5;
-  font:800 12.5px/1 inherit;cursor:pointer;transition:all .2s ease}
-.ev-alt button:hover{border-color:#4F46E5;transform:translateY(-1px)}
+.ev-alt button{flex:1;height:42px;padding:0 10px;border-radius:999px;border:2px solid #C9CDEE;background:#fff;color:#4F46E5;
+  font:800 12.5px/1 inherit;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all .2s ease}
+.ev-alt button:hover{border-color:#4F46E5;transform:translateY(-1px);box-shadow:3px 4px 9px rgba(79,70,229,.18)}
+.ev-admin-link{display:flex;align-items:center;justify-content:center;gap:7px;margin-bottom:12px;padding:11px 0;
+  border-radius:999px;border:2px solid rgba(255,255,255,.9);text-decoration:none;
+  font:800 13px/1 inherit;color:#fff;background:linear-gradient(175deg,#818CF8,#4F46E5);
+  box-shadow:inset -4px -6px 10px rgba(30,27,75,.28),inset 4px 5px 10px rgba(255,255,255,.35),5px 7px 14px rgba(79,70,229,.42);
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+.ev-admin-link:hover{transform:translateY(-2px);color:#fff}
+.ev-admin-link svg{flex:none}
+.ev-role-chip{display:inline-block;margin-left:7px;padding:2.5px 9px;border-radius:999px;
+  font-size:10px;font-weight:800;letter-spacing:.05em;color:#fff;
+  background:linear-gradient(175deg,#818CF8,#4F46E5);border:1.5px solid rgba(255,255,255,.85);vertical-align:2px}
 .ev-status{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .ev-status .row{display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:#4A4690}
 .ev-status .row b{color:#1E1B4B}
@@ -224,20 +234,35 @@ const EVSync = (() => {
   function renderAccount() {
     if (!hasTok()) return false;
     const m = mask.querySelector("#ev-modal");
+    const admin = (() => { try { return localStorage.getItem("ev_role") === "admin"; } catch (e) { return false; } })();
     const synced = "最后写入胜出 · 每次变更约 1 秒后自动上传";
     m.innerHTML = headHTML("云同步已开启", synced)
       + '<div class="ev-status">'
-      + '<div class="row"><span>账号</span><b id="ev-who"></b></div>'
+      + '<div class="row"><span>账号</span><b><span id="ev-who"></span>' + (admin ? '<span class="ev-role-chip">管理员</span>' : "") + "</b></div>"
       + '<div class="row"><span>同步范围</span><b>卡片 / 统计 / 进度 / 设置</b></div>'
       + '<div class="row"><span>服务器</span><b>本机 server.js · SQLite</b></div>'
-      + '</div>'
+      + "</div>"
+      + (admin ? '<a class="ev-admin-link" href="admin.html" target="_blank" rel="noopener" title="查看账号使用与学习情况">'
+          + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>'
+          + "<span>进入管理后台</span></a>" : "")
       + '<button class="ev-go" id="ev-syncnow">立即同步</button>'
       + '<div class="ev-alt">'
-      + '<button id="ev-logout">退出登录（保留本地数据）</button>'
+      + '<button id="ev-logout" title="本地学习数据保留在本机">退出登录</button>'
       + '<button data-ev="close">完成</button>'
-      + '</div>';
+      + "</div>";
     bindClose(m);
     m.querySelector("#ev-who").textContent = getName();
+    if (!admin) {
+      /* 兼容升级前登录的旧会话（本地无 ev_role）：探测一次管理权限，是管理员则就地补上入口 */
+      let tk = ""; try { tk = localStorage.getItem(T) || ""; } catch (e) {}
+      fetch("/api/admin/overview", { headers: { Authorization: "Bearer " + tk } })
+        .then(r => {
+          if (!r.ok) return;
+          try { localStorage.setItem("ev_role", "admin"); } catch (e) {}
+          if (mask.classList.contains("show")) renderAccount();
+        })
+        .catch(() => {});
+    }
     m.querySelector("#ev-syncnow").addEventListener("click", async () => {
       const b = m.querySelector("#ev-syncnow");
       b.disabled = true; b.textContent = "同步中…";

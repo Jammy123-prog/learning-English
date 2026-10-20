@@ -795,10 +795,12 @@ function serveStatic(req, res, url) {
   fs.stat(fp, (err, stt) => {
     if (err || !stt.isFile()) { res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" }); return res.end("404 Not Found"); }
     const ext = path.extname(fp).toLowerCase();
-    const isHtml = ext === ".html";
+    /* HTML/JS/CSS 每次协商缓存（本机服务，零延迟成本），避免发版后浏览器拿旧脚本；
+       图片/字体等静态资源仍可缓存 1 小时 */
+    const noCache = [".html", ".js", ".mjs", ".css", ".json"].includes(ext);
     res.writeHead(200, {
       "Content-Type": MIME[ext] || "application/octet-stream",
-      "Cache-Control": isHtml ? "no-cache" : "public, max-age=3600"
+      "Cache-Control": noCache ? "no-cache" : "public, max-age=3600"
     });
     fs.createReadStream(fp).pipe(res);
   });

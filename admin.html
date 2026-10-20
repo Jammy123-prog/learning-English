@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理后台 · EverWord</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.6.1">
+  <link rel="stylesheet" href="css/styles.css?v=1.6.2">
   <style>
     /* ===== 管理后台（复用 Claymorphism 设计令牌） ===== */
     body { background: linear-gradient(160deg, #EEF0FF 0%, #FDF3FA 55%, #EDFAF6 100%); min-height: 100vh; }
@@ -118,6 +118,7 @@
     }
     .ad-del:hover { transform: translateY(-1px); background: #FECACA; }
     .ad-del:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+    .ad-hint { font: 600 11px var(--font-body); color: var(--ink-mut); margin: 8px 2px 6px; }
     .ad-mode {
       margin-bottom: 14px; padding: 11px 16px; border-radius: 14px;
       font: 700 12.5px var(--font-body); color: #8A5B06;
@@ -175,6 +176,7 @@
             <tbody id="ad-tbody"></tbody>
           </table>
         </div>
+        <p class="ad-hint">统计口径：各账号「云同步」的学习状态（最后写入胜出）。本机未登录时的学习不计入，登录该账号后自动上传；换账号登录时本机数据按账号归档，不会串号。</p>
       </div>
     </div>
   </div>

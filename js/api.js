@@ -200,6 +200,32 @@ const EVSync = (() => {
     m.querySelector("#ev-pass").addEventListener("keydown", e => { if (e.key === "Enter") submitAuth(isReg); });
   }
 
+  /* ---- 本机数据按账号隔离：归档 / 清空 / 恢复 ----
+     学习键（ev_srs 等）在本机是全局一份，换账号登录若不切换会把上一账号的数据
+     显示给下一账号、甚至被 pushNow 串号上传。故登录/登出时按用户名归档快照。 */
+  const ARCH = n => "ev_local:" + n;
+  function snapshotKeys(name) {
+    if (!name || !canLS()) return;
+    try {
+      const snap = {};
+      KEYS.forEach(k => { snap[k] = localStorage.getItem(k); });
+      localStorage.setItem(ARCH(name), JSON.stringify(snap));
+    } catch (e) {}
+  }
+  function clearKeys() {
+    KEYS.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+  }
+  function restoreSnapshot(name) {
+    if (!name || !canLS()) return false;
+    try {
+      const raw = localStorage.getItem(ARCH(name));
+      if (!raw) return false;
+      const snap = JSON.parse(raw);
+      KEYS.forEach(k => { if (snap[k] != null) { try { localStorage.setItem(k, snap[k]); } catch (e) {} } });
+      return true;
+    } catch (e) { return false; }
+  }
+
   async function submitAuth(isReg) {
     const m = mask.querySelector("#ev-modal");
     const name = m.querySelector("#ev-name").value.trim();
@@ -217,15 +243,22 @@ const EVSync = (() => {
         method: "POST",
         body: JSON.stringify({ name, password: pass })
       });
+      const prev = getName();   // 登录前的账号（可能为空 = 匿名学习）
+      if (prev && prev !== j.name) {
+        /* 换账号：归档上一账号的本机数据 → 清空 → 恢复本账号快照（若有） */
+        snapshotKeys(prev);
+        clearKeys();
+        restoreSnapshot(j.name);
+      } else if (!prev) {
+        /* 匿名后登录：恢复该账号的本机快照（云端拉取随后覆盖存在的项） */
+        restoreSnapshot(j.name);
+      }
       localStorage.setItem(T, j.token);
       localStorage.setItem(N, j.name);
       try { localStorage.setItem("ev_role", j.role || "user"); } catch (e) {}
-      const changed = await pullChanged().catch(() => false);
-      if (changed) { location.reload(); return; }
-      await pushNow().catch(() => {});   // 首次登录：把本地数据上传
-      closeModal();
-      paintBtn();
-      if (typeof toast === "function") toast("已登录 " + j.name + "，学习进度将自动云同步");
+      await pullChanged().catch(() => false);
+      /* 账号切换后必须重载：srs/stats 等内存态在页面加载时构建 */
+      location.reload();
     } catch (e) {
       fail(e.code === 401 ? "用户名或密码错误" : (e.code === 409 ? "该用户名已被注册" : ("出错了：" + e.message)));
     }
@@ -276,12 +309,15 @@ const EVSync = (() => {
       b.disabled = false; b.textContent = "立即同步";
     });
     m.querySelector("#ev-logout").addEventListener("click", () => {
+      /* 归档该账号本机数据 → 清空学习键 → 重载（防止匿名/下一账号读到上一账号数据） */
+      snapshotKeys(getName());
+      clearKeys();
       localStorage.removeItem(T);
       localStorage.removeItem(N);
       try { localStorage.removeItem("ev_role"); } catch (e) {}
       paintBtn();
       closeModal();
-      if (typeof toast === "function") toast("已退出登录，数据保留在本机");
+      location.reload();
     });
     return true;
   }

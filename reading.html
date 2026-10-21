@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=1.8.0">
+<link rel="stylesheet" href="css/styles.css?v=1.8.1">
 <script>document.documentElement.className += " js";</script>
 </head>
 <body data-page="reading">
@@ -52,6 +52,9 @@
       <div class="read-foot rv">
         <button class="btn btn-primary" id="mark-read">
           <svg class="ic" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg><span>标记已完成阅读</span>
+        </button>
+        <button class="btn btn-ghost" id="next-art" title="推送到同级别下一篇原创文章">
+          <span>推送下一篇</span><span class="btn-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span>
         </button>
         <a class="btn btn-ghost" href="quiz.html">去做每日测验<span class="btn-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13"/><path d="M13 6l6 6-6 6"/></svg></span></a>
       </div>
@@ -161,15 +164,15 @@
   <p class="foot-tag">科学记忆 · 沉浸阅读 · 主动回忆</p>
 </footer>
 
-<script src="js/icons.js?v=1.8.0"></script>
-<script src="js/data.js?v=1.8.0"></script>
-<script src="js/articles-ext.js?v=1.8.0"></script>
-<script src="js/api.js?v=1.8.0"></script>
-<script src="js/srs.js?v=1.8.0"></script>
-<script src="js/settings.js?v=1.8.0"></script>
-<script src="js/tts.js?v=1.8.0"></script>
-<script src="js/app.js?v=1.8.0"></script>
-<script src="js/news-data.js?v=1.8.0"></script>
+<script src="js/icons.js?v=1.8.1"></script>
+<script src="js/data.js?v=1.8.1"></script>
+<script src="js/articles-ext.js?v=1.8.1"></script>
+<script src="js/api.js?v=1.8.1"></script>
+<script src="js/srs.js?v=1.8.1"></script>
+<script src="js/settings.js?v=1.8.1"></script>
+<script src="js/tts.js?v=1.8.1"></script>
+<script src="js/app.js?v=1.8.1"></script>
+<script src="js/news-data.js?v=1.8.1"></script>
 <script>
 (function () {
   const artEl = document.getElementById("article");
@@ -285,6 +288,37 @@
   });
 
   /* ---------------- 正文渲染 ---------------- */
+  let readFilter = "";   // 篇目筛选："" 全部 | "unread" 未读 | "read" 已读
+  function renderPicker() {
+    const list = listOf(lv);
+    const readSet = new Set(Stats.readIds);
+    const shown = list.map((x, k) => ({ x, k })).filter(it =>
+      readFilter === "unread" ? !readSet.has(it.x.id) : readFilter === "read" ? readSet.has(it.x.id) : true);
+    picker.innerHTML = list.length > 1
+      ? "<span class='a-picker-lab'>篇目</span>"
+        + '<span class="a-pf">'
+        + [["", "全部"], ["unread", "未读"], ["read", "已读"]].map(f =>
+            '<button class="ns-chip' + (readFilter === f[0] ? " active" : "") + '" data-pf="' + f[0] + '">' + f[1] + "</button>").join("")
+        + "</span>"
+        + shown.map(it =>
+            '<button data-ai="' + it.k + '" class="' + (it.k === aIdx ? "active" : "") + (readSet.has(it.x.id) ? " done" : "") + '" title="' + escHtml(it.x.titleZh) + '">'
+            + (it.k + 1) + ". " + escHtml(it.x.title) + "</button>").join("")
+        + (shown.length ? "" : '<span class="a-pf-empty">该筛选下没有篇目</span>')
+      : "";
+    picker.querySelectorAll("[data-pf]").forEach(b =>
+      b.addEventListener("click", () => { readFilter = b.dataset.pf; renderPicker(); }));
+    picker.querySelectorAll("button[data-ai]").forEach(b =>
+      b.addEventListener("click", () => { aIdx = +b.dataset.ai; TTS.stop(); render(); }));
+  }
+  /* 更新已读计数与篇目标记（不重渲染正文） */
+  function refreshReadMeta() {
+    const list = listOf(lv);
+    const readN = list.filter(x => Stats.readIds.includes(x.id)).length;
+    const el = document.getElementById("read-count");
+    if (el) el.textContent = "已读 " + readN + " / " + list.length + " 篇";
+    renderPicker();
+  }
+
   function render() {
     const list = listOf(lv);
     if (aIdx >= list.length) aIdx = 0;
@@ -292,15 +326,12 @@
     const words = a.paras.join(" ").trim().split(/\s+/).length;
     const mins = Math.max(1, Math.round(words / 100));
     tabs.querySelectorAll("button").forEach(b => b.classList.toggle("active", +b.dataset.lv === lv));
-    picker.innerHTML = list.length > 1
-      ? "<span class='a-picker-lab'>篇目</span>" + list.map((x, k) =>
-          '<button data-ai="' + k + '" class="' + (k === aIdx ? "active" : "") + '" title="' + escHtml(x.titleZh) + '">' + (k + 1) + ". " + escHtml(x.title) + "</button>").join("")
-      : "";
+    renderPicker();
     artEl.innerHTML = `
       <div class="a-meta">
         <span class="chip ${LV_CLS[lv]}">${LV_NAME[lv]}难度</span>
         <span class="chip topic">${a.topic}</span>
-        <span class="a-info">${words} 词 · 约 ${mins} 分钟 · 原创文章</span>
+        <span class="a-info">${words} 词 · 约 ${mins} 分钟 · 原创文章 · <span id="read-count">已读 ${list.filter(x => Stats.readIds.includes(x.id)).length} / ${list.length} 篇</span></span>
       </div>
       <h2 class="a-title">${escHtml(a.title)}</h2>
       <p class="a-titlezh">${escHtml(a.titleZh)}</p>
@@ -317,10 +348,6 @@
       <div class="prose" id="prose">${a.paras.map(p => "<p>" + escHtml(p) + "</p>").join("")}</div>`;
 
     renderRail(a);
-
-    /* 篇目切换 */
-    picker.querySelectorAll("button[data-ai]").forEach(b =>
-      b.addEventListener("click", () => { aIdx = +b.dataset.ai; TTS.stop(); render(); }));
 
     /* 悬浮取词 */
     Dictip.bind(document.getElementById("prose"));
@@ -351,8 +378,19 @@
   markBtn.addEventListener("click", () => {
     Prog.markRead(cur().id);
     setRead();
+    refreshReadMeta();
     toast("已记录今日阅读，任务卡已点亮");
     Stats.touch();
+  });
+
+  /* 推送下一篇：同级别顺序循环，滚动回正文顶部 */
+  document.getElementById("next-art").addEventListener("click", () => {
+    const list = listOf(lv);
+    aIdx = (aIdx + 1) % list.length;
+    TTS.stop();
+    render();
+    artEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    toast("已推送到「" + cur().titleZh + "」");
   });
 
   /* ================= 全库检索：文章（标题/主题/正文）+ 词库（词形/释义） ================= */

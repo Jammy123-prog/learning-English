@@ -195,10 +195,12 @@ const SRS = (() => {
   };
 })();
 
-/* ---------------- 连续天数 / 测验正确率统计 ---------------- */
+/* ---------------- 连续天数 / 测验正确率 / 累计阅读统计 ---------------- */
 const Stats = (() => {
   const KEY = "ev_stats";
-  let st = Store.get(KEY, { streak: 0, best: 0, last: "", quizTotal: 0, quizCorrect: 0 });
+  const fresh = () => ({ streak: 0, best: 0, last: "", quizTotal: 0, quizCorrect: 0, readIds: [] });
+  let st = Store.get(KEY, null) || fresh();
+  if (!Array.isArray(st.readIds)) st.readIds = [];
   const save = () => { Store.set(KEY, st); EVDirt(); };
   return {
     touch() {
@@ -213,13 +215,21 @@ const Stats = (() => {
       st.quizTotal += total; st.quizCorrect += correct;
       save(); this.touch();
     },
+    /* 累计已读文章（跨天持久，供词表/管理后台统计；Prog.markRead 联动调用） */
+    readDone(id) {
+      if (id == null || st.readIds.includes(id)) return false;
+      st.readIds.push(id); save(); return true;
+    },
+    get readIds() { return st.readIds.slice(); },
+    get readTotal() { return st.readIds.length; },
     get streak() { return st.streak; },
     get best() { return st.best; },
     get acc() { return st.quizTotal ? Math.round(st.quizCorrect / st.quizTotal * 100) : null; },
     reload(raw) {
       st = (raw && typeof raw === "object" && "streak" in raw)
-        ? { streak: raw.streak | 0, best: raw.best | 0, last: raw.last || "", quizTotal: raw.quizTotal | 0, quizCorrect: raw.quizCorrect | 0 }
-        : Store.get(KEY, { streak: 0, best: 0, last: "", quizTotal: 0, quizCorrect: 0 });
+        ? { streak: raw.streak | 0, best: raw.best | 0, last: raw.last || "", quizTotal: raw.quizTotal | 0, quizCorrect: raw.quizCorrect | 0, readIds: Array.isArray(raw.readIds) ? raw.readIds : [] }
+        : Store.get(KEY, null) || fresh();
+      if (!Array.isArray(st.readIds)) st.readIds = [];
     }
   };
 })();
@@ -237,7 +247,7 @@ const Prog = (() => {
     get read() { return st.read.slice(); },
     get quiz() { return st.quiz; },
     addWords(n) { st.words += n; save(); },
-    markRead(id) { if (!st.read.includes(id)) { st.read.push(id); save(); } },
+    markRead(id) { if (!st.read.includes(id)) { st.read.push(id); save(); } if (typeof Stats !== "undefined" && Stats.readDone) Stats.readDone(id); },
     markQuiz() { st.quiz = true; save(); },
     reload(raw) {
       st = (raw && typeof raw === "object" && raw.date) ? raw : fresh();

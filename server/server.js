@@ -30,7 +30,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 
-const VERSION = "1.8.0";
+const VERSION = "1.8.1";
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "..", "data");
 const DB_FILE = path.join(DATA_DIR, "everword.db");
@@ -536,6 +536,9 @@ function usageFromRow(r) {
     best: stats.best | 0,
     acc: stats.quizTotal ? Math.round((stats.quizCorrect || 0) / stats.quizTotal * 100) : null,
     quizTotal: stats.quizTotal | 0,
+    readTotal: Array.isArray(stats.readIds) ? stats.readIds.length : Number(stats.readTotal || 0),
+    readToday: (prog.read || []).length | 0,
+    quizToday: prog.quiz === true,
     activeToday: prog.date === todayKey && ((prog.words | 0) > 0 || (prog.read || []).length > 0 || prog.quiz === true),
     level: settings.level || "",
     newPerDay: settings.newPerDay || null

@@ -1322,6 +1322,11 @@ html.js .rv.in { opacity: 1; transform: none; }
 /* ---- 篇目选择器：文章扩到 30 篇后可滚动、按钮收窄 ---- */
 .a-picker { max-height: 108px; overflow-y: auto; padding: 2px 4px 6px; scrollbar-width: thin; }
 .a-picker button { max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 已读标记 + 全部/未读/已读筛选 */
+.a-picker button.done { color: var(--green-deep); }
+.a-picker button.done::after { content: " ✓"; font-weight: 800; }
+.a-pf { display: inline-flex; gap: 6px; margin-right: 4px; }
+.a-pf-empty { font: 700 12px var(--font-body); color: var(--ink-mut); padding: 4px 8px; }
 
 /* ---- 新闻条目：标题行 + 精读按钮 ---- */
 .ns-tt { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

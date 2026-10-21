@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理后台 · EverWord</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.0">
+  <link rel="stylesheet" href="css/styles.css?v=1.8.1">
   <style>
     /* ===== 管理后台（复用 Claymorphism 设计令牌） ===== */
     body { background: linear-gradient(160deg, #EEF0FF 0%, #FDF3FA 55%, #EDFAF6 100%); min-height: 100vh; }
@@ -245,7 +245,11 @@
     { k: "learned", t: "已学 / 卡片", render: u => u.cards ? "<b>" + u.learned + "</b> / " + u.cards : '<span class="ad-muted">未开始</span>' },
     { k: "due", t: "待复习", render: u => u.cards ? (u.due > 20 ? '<span class="ad-warn">' + u.due + "</span>" : u.due) : '<span class="ad-muted">—</span>' },
     { k: "streak", t: "连续天数", render: u => u.streak ? '<span class="ad-good">' + u.streak + " 天</span>" : '<span class="ad-muted">0</span>' },
-    { k: "acc", t: "正确率", render: u => u.acc == null ? '<span class="ad-muted">—</span>' : u.acc + "%<span class='ad-muted'>（" + u.quizTotal + " 题）</span>" },
+    { k: "readTotal", t: "阅读", render: u => u.readTotal
+        ? "<b>" + u.readTotal + "</b> 篇" + (u.readToday ? "<span class='ad-muted'>（今日 " + u.readToday + "）</span>" : "")
+        : (u.readToday ? "<b>0</b> 篇<span class='ad-muted'>（今日 " + u.readToday + "）</span>" : '<span class="ad-muted">0 篇</span>') },
+    { k: "acc", t: "正确率", render: u => (u.acc == null ? '<span class="ad-muted">—</span>' : u.acc + "%<span class='ad-muted'>（" + u.quizTotal + " 题）</span>")
+        + (u.quizToday ? "<span class='ad-good' title='今日已完成测验'> · 今日已测</span>" : "") },
     { k: "level", t: "设置", render: u => (u.level || '<span class="ad-muted">默认</span>') + (u.newPerDay ? " · " + u.newPerDay + " 词/天" : "") },
     { k: "bytes", t: "云存档", render: u => '<span class="ad-bar-cell"><span class="ad-bar"><i style="width:' + Math.min(100, Math.round(u.bytes / 5120)) + '%"></i></span><span class="ad-muted">' + fmtKB(u.bytes) + "</span></span>" },
     { k: "id", t: "操作", render: u => {
@@ -315,10 +319,11 @@
   /* ---- CSV 导出（Excel 友好：UTF-8 BOM） ---- */
   $("ad-csv").addEventListener("click", () => {
     if (!USERS.length) return;
-    const head = ["账号", "角色", "注册时间", "最近活跃", "最近同步", "卡片数", "已学", "待复习", "连续天数", "最佳", "正确率%", "测验题数", "今日已学习", "级别", "每日词量", "云存档字节"];
+    const head = ["账号", "角色", "注册时间", "最近活跃", "最近同步", "卡片数", "已学", "待复习", "连续天数", "最佳", "累计阅读", "今日阅读", "正确率%", "测验题数", "今日已测", "今日已学习", "级别", "每日词量", "云存档字节"];
     const lines = [head.join(",")].concat(USERS.map(u => [
       u.name, u.role, u.createdAt || "", u.lastSeen || "", u.syncedAt || "",
-      u.cards, u.learned, u.due, u.streak, u.best, u.acc == null ? "" : u.acc, u.quizTotal,
+      u.cards, u.learned, u.due, u.streak, u.best, u.readTotal || 0, u.readToday || 0,
+      u.acc == null ? "" : u.acc, u.quizTotal, u.quizToday ? "是" : "否",
       u.activeToday ? "是" : "否", u.level || "", u.newPerDay || "", u.bytes
     ].map(v => { const s = String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(",")));
     const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
@@ -339,7 +344,8 @@
     const items = [
       ["今日学习", u.activeToday ? "已学习" : "未学习"],
       ["连续天数", u.streak + " 天"], ["已学 / 卡片", u.learned + " / " + u.cards],
-      ["待复习", u.due], ["正确率", u.acc == null ? "—" : u.acc + "%"], ["云存档", fmtKB(u.bytes)]
+      ["待复习", u.due], ["累计阅读", (u.readTotal || 0) + " 篇" + (u.readToday ? " · 今日 " + u.readToday : "")],
+      ["正确率", (u.acc == null ? "—" : u.acc + "%") + (u.quizToday ? " · 今日已测" : "")]
     ];
     $("ad-kpis").innerHTML = items.map(x => '<div class="ad-kpi"><b>' + x[1] + "</b><span>" + x[0] + "</span></div>").join("");
   }

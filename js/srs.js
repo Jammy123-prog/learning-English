@@ -159,6 +159,22 @@ const SRS = (() => {
       });
       return { total: p.length, fresh, learned, due };
     },
+    /* 「已掌握」词清单（与统计口径一致：reps >= 1，含生词本附加词） */
+    masteredList(level) {
+      const meta = new Map(poolFor(level || EVSettings().level).map(x => [x.w, x]));
+      const out = [];
+      for (const w in st.cards) {
+        const c = st.cards[w];
+        const m = meta.get(w);
+        if (!c || c.reps < 1 || !m) continue;
+        out.push({
+          w, ipa: m.ipa || "", pos: m.pos || "", def: m.def || "",
+          lv: m.lv || (typeof m.lvs === "string" ? m.lvs.split(",")[0] : "") || "生词本",
+          reps: c.reps, ivl: c.ivl, due: c.due, lapses: c.lapses | 0
+        });
+      }
+      return out;
+    },
     /* 以下为全局统计（跨级别） */
     get learnedCount() { return Object.values(st.cards).filter(c => c.reps >= 1).length; },
     get vocabCount() { return Object.keys(st.cards).length; },

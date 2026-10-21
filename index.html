@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/landing.css?v=1.7.0">
+<link rel="stylesheet" href="css/landing.css?v=1.8.0">
 <script>document.documentElement.className += " js";</script>
 </head>
 <body data-page="home">
@@ -211,7 +211,7 @@
         <div class="clay card rv">
           <span class="eyebrow">Stats · 学习统计</span>
           <div class="stat-grid">
-            <div class="stat-cell"><b class="num" id="n-master">0</b><small>已掌握单词</small></div>
+            <div class="stat-cell ml-cell" id="master-cell" title="点击查看已掌握的单词列表" role="button" tabindex="0"><b class="num" id="n-master">0</b><small>已掌握单词</small></div>
             <div class="stat-cell"><b class="num" data-streak>0</b><small>连续学习天数</small></div>
             <div class="stat-cell"><b class="num" id="n-acc">—</b><small>测验正确率</small></div>
             <div class="stat-cell"><b class="num" id="n-vocab">0</b><small>生词本词数</small></div>
@@ -358,12 +358,12 @@
   <p class="foot-copy">© 2026 EverWord · 每日英语 — 用认知科学把英语长在记忆里</p>
 </footer>
 
-<script src="js/icons.js?v=1.7.0"></script>
-<script src="js/data.js?v=1.7.0"></script>
-<script src="js/api.js?v=1.7.0"></script>
-<script src="js/srs.js?v=1.7.0"></script>
-<script src="js/settings.js?v=1.7.0"></script>
-<script src="js/app.js?v=1.7.0"></script>
+<script src="js/icons.js?v=1.8.0"></script>
+<script src="js/data.js?v=1.8.0"></script>
+<script src="js/api.js?v=1.8.0"></script>
+<script src="js/srs.js?v=1.8.0"></script>
+<script src="js/settings.js?v=1.8.0"></script>
+<script src="js/app.js?v=1.8.0"></script>
 <script>
 (function () {
   /* ---- 任务卡 ---- */
@@ -422,6 +422,9 @@
   }
   countUp(document.getElementById("n-master"), SRS.learnedCount);
   countUp(document.getElementById("n-vocab"), SRS.vocabCount);
+  const masterCell = document.getElementById("master-cell");
+  masterCell.addEventListener("click", () => MasteredList.open("全部"));
+  masterCell.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); MasteredList.open("全部"); } });
   const acc = Stats.acc;
   document.getElementById("n-acc").textContent = acc === null ? "—" : acc + "%";
 

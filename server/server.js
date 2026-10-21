@@ -30,7 +30,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 
-const VERSION = "1.6.1";
+const VERSION = "1.8.0";
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "..", "data");
 const DB_FILE = path.join(DATA_DIR, "everword.db");
@@ -40,6 +40,11 @@ const envInt = (k, d) => { const v = parseInt(process.env[k], 10); return Number
 const PORT = parseInt(process.env.PORT, 10) || 8787;
 const TOKEN_DAYS = 30;
 const STATE_MAX = 512 * 1024; // 单用户状态体积上限
+/* 划选翻译（DeepL 兼容接口）：密钥不写入代码——优先环境变量 EV_DEEPL_KEY，
+   其次本机文件 data/.deepl_key（已被 .gitignore 排除），均未配置则翻译接口返回 503 */
+const DEEPL_API = process.env.EV_DEEPL_API || "https://api.deepl-pro.com/v2/translate";
+const DEEPL_KEY = process.env.EV_DEEPL_KEY
+  || (() => { try { return fs.readFileSync(path.join(DATA_DIR, ".deepl_key"), "utf8").trim(); } catch (e) { return ""; } })();
 
 /* ---------------- 秘钥（用于 HMAC 签名，首次启动自动生成） ---------------- */
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -697,6 +702,29 @@ async function handleApi(req, res, url, body) {
     return json(res, 200, { ok: true, item: { id: row.id, title: row.title, link: row.link, source: row.source, topic: row.topic, published: row.published, summary: row.summary, paras } });
   }
 
+  /* ---- 划选翻译（公开）：DeepL 兼容接口代理，规避浏览器跨域；密钥未配置时明确提示 ---- */
+  if (p === "/api/translate" && req.method === "POST") {
+    if (!DEEPL_KEY) return bad(res, "未配置翻译密钥：请设置环境变量 EV_DEEPL_KEY 或创建 data/.deepl_key 文件", 503);
+    const text = String((body && body.text) || "").trim();
+    if (!text) return bad(res, "text 不能为空");
+    if (text.length > 2500) return bad(res, "文本过长（上限 2500 字符）", 413);
+    const target = body.target === "EN" ? "EN" : "ZH";
+    try {
+      const r = await fetch(DEEPL_API, {
+        method: "POST",
+        headers: { "Authorization": "DeepL-Auth-Key " + DEEPL_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: [text], target_lang: target }),
+        signal: AbortSignal.timeout(12000)
+      });
+      const j = await r.json().catch(() => ({}));
+      const out = j && j.translations && j.translations[0] && j.translations[0].text;
+      if (!r.ok || !out) return bad(res, (j && (j.message || j.error)) || ("DeepL HTTP " + r.status), 502);
+      return json(res, 200, { ok: true, text: out, lang: (j.translations[0].detected_source_language || "") });
+    } catch (e) {
+      return bad(res, "翻译服务不可用：" + e.message, 502);
+    }
+  }
+
   /* ---- 以下接口需要登录 ---- */
   let user = null;
   const auth = req.headers.authorization || "";
@@ -907,6 +935,7 @@ server.listen(PORT, () => {
   console.log("  本机访问   http://localhost:" + PORT);
   console.log("  局域网     http://<本机IP>:" + PORT + "（移动端同网可达）");
   console.log("  数据库     " + DB_FILE);
+  console.log("  翻译       " + (DEEPL_KEY ? "DeepL 已配置（/api/translate 可用）" : "未配置密钥（设置 EV_DEEPL_KEY 或 data/.deepl_key 后可用）"));
   console.log("  提示       打开页面后右下角/导航栏点「云同步」注册账号");
   console.log("");
   /* 启动即预热新闻源（不阻塞监听） */

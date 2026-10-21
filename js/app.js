@@ -45,6 +45,262 @@ function initReveal() {
   setTimeout(() => document.querySelectorAll(".rv:not(.in)").forEach(el => el.classList.add("in")), 1400);
 }
 
+/* ---------- 已掌握单词列表（Anki 式浏览弹层，单词页 / 首页共用） ---------- */
+const MasteredList = (() => {
+  let mask = null;
+
+  function dueChip(due) {
+    if (due <= Date.now()) return '<span class="ml-due warn">已到期 · 待复习</span>';
+    const days = Math.round((due - startOfDay()) / DAY);
+    return '<span class="ml-due">' + (days <= 1 ? "明天复习" : days + " 天后复习") + "</span>";
+  }
+
+  function rowHtml(x) {
+    return '<div class="ml-row">'
+      + '<div class="ml-top">'
+      +   '<span class="ml-w">' + escHtml(x.w) + "</span>"
+      +   (x.ipa ? '<span class="ml-ipa">' + escHtml(x.ipa) + "</span>" : "")
+      +   '<span class="chip ' + lvClass(x.lv) + '">' + escHtml(x.lv) + "</span>"
+      +   dueChip(x.due)
+      + "</div>"
+      + (x.def ? '<p class="ml-def">' + (x.pos ? '<span class="ml-pos">' + escHtml(x.pos) + "</span>" : "") + escHtml(x.def) + "</p>" : "")
+      + "</div>";
+  }
+
+  function renderList(listEl, countEl, items, kw) {
+    const q = (kw || "").trim().toLowerCase();
+    const hit = q ? items.filter(x => x.w.toLowerCase().includes(q) || (x.def || "").toLowerCase().includes(q)) : items;
+    countEl.textContent = q ? hit.length + " / " + items.length : items.length;
+    listEl.innerHTML = hit.length
+      ? hit.map(rowHtml).join("")
+      : '<div class="ml-empty">' + (items.length ? "没有匹配「" + escHtml(q) + "」的单词" : "还没有已掌握的单词 —— 去单词页完成今日队列吧") + "</div>";
+  }
+
+  function open(level) {
+    if (!mask) {
+      mask = document.createElement("div");
+      mask.id = "ml-mask";
+      mask.addEventListener("click", e => { if (e.target === mask) close(); });
+      document.body.appendChild(mask);
+      document.addEventListener("keydown", e => { if (e.key === "Escape" && mask.classList.contains("show")) close(); });
+    }
+    const items = SRS.masteredList(level).sort((a, b) => a.due - b.due || a.w.localeCompare(b.w));
+    mask.innerHTML = '<div class="ml-panel" role="dialog" aria-modal="true" aria-label="已掌握单词列表">'
+      + '<div class="ml-head">'
+      +   "<div>"
+      +     '<span class="eyebrow">Mastered · ' + escHtml(level || "全部") + "</span>"
+      +     '<h3 class="ml-title">已掌握单词 <b class="ml-count" id="ml-count">' + items.length + "</b></h3>"
+      +   "</div>"
+      +   '<button class="ml-close" data-ml="close" aria-label="关闭">✕</button>'
+      + "</div>"
+      + '<div class="ml-search"><input id="ml-q" type="search" placeholder="筛选单词或释义…" autocomplete="off" spellcheck="false"></div>'
+      + '<div class="ml-list" id="ml-list"></div>'
+      + '<p class="ml-note">口径与统计一致：完成过至少 1 次复习的词；到期卡会自动回到复习队列。</p>'
+      + "</div>";
+    const listEl = mask.querySelector("#ml-list");
+    const countEl = mask.querySelector("#ml-count");
+    const qIn = mask.querySelector("#ml-q");
+    qIn.addEventListener("input", () => renderList(listEl, countEl, items, qIn.value));
+    mask.querySelector("[data-ml='close']").addEventListener("click", close);
+    renderList(listEl, countEl, items, "");
+    mask.classList.add("show");
+    setTimeout(() => qIn.focus(), 200);
+  }
+
+  function close() { if (mask) mask.classList.remove("show"); }
+
+  return { open, close };
+})();
+
+/* ---------- 划选翻译（正文/精读划选即自动出译文；滚动时译文跟随选区，点外部才关闭，参考沉浸式翻译/沙拉查词交互） ---------- */
+const SelTrans = (() => {
+  const DEEPL_URL = "https://deepl-pro.com/#/translate?referral_code=h6uXFxH99w";
+  let pop = null, selText = "", transText = "", anchor = { x: 0, y: 0 };
+  let selRange = null, abortCtl = null;
+
+  function fallbackCopy(t) {
+    const ta = document.createElement("textarea");
+    ta.value = t;
+    ta.style.cssText = "position:fixed;opacity:0";
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    ta.remove();
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(() => fallbackCopy(t));
+    else fallbackCopy(t);
+  }
+
+  function openDeepl() {
+    copyText(selText);
+    window.open(DEEPL_URL + "&text=" + encodeURIComponent(selText), "_blank", "noopener");
+  }
+
+  const BTN = {
+    say:   '<button class="spt-btn" data-act="say" title="朗读选中文本">' + ICONS.speaker + "<span>发音</span></button>",
+    copy:  '<button class="spt-btn" data-act="copy" title="复制选中文本">' + ICONS.copy + "<span>复制</span></button>",
+    copyT: '<button class="spt-btn primary" data-act="copyT" title="复制译文">' + ICONS.copy + "<span>复制译文</span></button>",
+    deepl: '<button class="spt-btn" data-act="deepl" title="在 DeepL 网页中打开（已复制原文）">' + ICONS.arrow + "<span>DeepL ↗</span></button>"
+  };
+  function setActs(mode) {
+    const box = pop.querySelector(".spt-acts");
+    if (mode === "loading") {
+      box.innerHTML = '<button class="spt-btn primary" disabled>' + ICONS.translate + "<span>翻译中…</span></button>" + BTN.say + BTN.copy;
+    } else if (mode === "done") {
+      box.innerHTML = BTN.copyT + BTN.say + BTN.deepl;
+    } else {
+      box.innerHTML = BTN.say + BTN.copy;
+    }
+  }
+
+  async function doTrans() {
+    if (!selText) return;
+    if (abortCtl) abortCtl.abort();
+    abortCtl = new AbortController();
+    setActs("loading");
+    try {
+      const r = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: selText }),
+        signal: AbortSignal.any ? AbortSignal.any([abortCtl.signal, AbortSignal.timeout(13000)]) : AbortSignal.timeout(13000)
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || !j.ok || !j.text) throw new Error(j.error || ("HTTP " + r.status));
+      transText = j.text;
+      if (!pop || !pop.classList.contains("show")) return;   // 请求返回前弹条已被关闭
+      pop.querySelector("#spt-res").textContent = transText;
+      pop.querySelector("#spt-res").hidden = false;
+      setActs("done");
+      place();   // 弹条长高后重摆位
+    } catch (e) {
+      if (e.name === "AbortError") return;                    // 被新的划选取代
+      /* 站内不可用（file:// 模式 / 服务未启动 / 上游失败）→ 回退网页版 */
+      openDeepl();
+      toast("站内翻译不可用，已复制原文并打开 DeepL");
+      hide();
+    }
+  }
+
+  function act(actName) {
+    if (!selText) return;
+    if (actName === "say") {
+      if (typeof TTS !== "undefined" && TTS.speak) { if (!TTS.speak(selText)) toast("当前浏览器不支持语音合成"); }
+    } else if (actName === "copy") {
+      copyText(selText); toast("已复制选中文本");
+    } else if (actName === "copyT") {
+      copyText(transText); toast("已复制译文");
+    } else if (actName === "deepl") {
+      openDeepl(); toast("已复制原文 · DeepL 已在新标签页打开");
+    }
+  }
+
+  function ensure() {
+    if (pop) return pop;
+    pop = document.createElement("div");
+    pop.id = "sel-pop";
+    pop.innerHTML = '<div class="spt-txt" id="spt-txt"></div>'
+      + '<div class="spt-res" id="spt-res" hidden></div>'
+      + '<div class="spt-acts"></div>';
+    document.body.appendChild(pop);
+    pop.addEventListener("mousedown", e => e.stopPropagation());   // 点弹条本身不隐藏
+    pop.addEventListener("click", e => {
+      const b = e.target.closest(".spt-btn");
+      if (b && !b.disabled) act(b.dataset.act);
+    });
+    return pop;
+  }
+
+  /* 按锚点（选区中心/底边）摆位并夹取在视口内；滚动/内容变化时跟随重摆 */
+  function place() {
+    if (!pop || !pop.classList.contains("show")) return;
+    if (selRange) {
+      try {
+        const rr = selRange.getBoundingClientRect();
+        if (rr && rr.width) anchor = { x: rr.left + rr.width / 2, y: rr.bottom };
+      } catch (e) { /* 选区已失效 → 沿用旧锚点 */ }
+    }
+    const r = pop.getBoundingClientRect();
+    let left = anchor.x - r.width / 2, top = anchor.y + 10;
+    left = Math.max(12, Math.min(window.innerWidth - r.width - 12, left));
+    if (top + r.height > window.innerHeight - 12) top = anchor.y - r.height - 12;   // 下方放不下 → 上方
+    pop.style.left = Math.round(Math.max(12, left)) + "px";
+    pop.style.top = Math.round(Math.max(12, top)) + "px";
+  }
+
+  function show(cx, cy, text, range) {
+    selText = text;
+    transText = "";
+    anchor = { x: cx, y: cy };
+    selRange = range || null;
+    const p = ensure();
+    p.querySelector("#spt-txt").textContent = text.length > 64 ? text.slice(0, 64) + "…" : text;
+    p.querySelector("#spt-res").hidden = true;
+    p.classList.add("show");
+    place();
+    doTrans();   // 划选即自动翻译，无需点击
+  }
+  function hide() {
+    if (pop) pop.classList.remove("show");
+    selRange = null;
+    if (abortCtl) { abortCtl.abort(); abortCtl = null; }
+  }
+
+  /* 点击是否落在选中文本上（点选中文本不关闭弹条） */
+  function inSelection(e) {
+    if (!selRange || !selRange.getClientRects) return false;
+    const rects = selRange.getClientRects();
+    for (const r of rects) {
+      if (e.clientX >= r.left - 4 && e.clientX <= r.right + 4 && e.clientY >= r.top - 4 && e.clientY <= r.bottom + 4) return true;
+    }
+    return false;
+  }
+
+  function inProse(node) {
+    const el = node && (node.nodeType === 1 ? node : node.parentElement);
+    return !!(el && el.closest && el.closest(".prose"));
+  }
+
+  document.addEventListener("mouseup", e => {
+    if (pop && pop.contains(e.target)) return;
+    setTimeout(() => {                                    // 等选区落定
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) return hide();
+      const text = String(sel).replace(/\s+/g, " ").trim();
+      if (text.length < 2 || !inProse(sel.anchorNode) || !inProse(sel.focusNode)) return hide();
+      if (typeof Dictip !== "undefined" && Dictip.hide) Dictip.hide();   // 与悬浮取词互斥
+      const range = sel.getRangeAt(0);
+      const rect = range.getBoundingClientRect();
+      show(rect.left + rect.width / 2, rect.bottom, text, range.cloneRange());
+    }, 0);
+  });
+  /* 只有点击「选中文本和译文之外」的位置才关闭 */
+  document.addEventListener("mousedown", e => {
+    if (!pop || !pop.classList.contains("show")) return;
+    if (pop.contains(e.target)) return;
+    if (inSelection(e)) return;
+    hide();
+  });
+  /* 滚动/缩放：译文跟随选区移动，不消失；选区失效（被取消）时才收起 */
+  let rafId = 0;
+  function follow() {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = 0;
+      if (!pop || !pop.classList.contains("show")) return;
+      const sel = window.getSelection();
+      if (!selRange || !sel || sel.isCollapsed || !String(sel).trim()) { hide(); return; }
+      place();
+    });
+  }
+  window.addEventListener("scroll", follow, true);
+  window.addEventListener("resize", follow);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") hide(); });
+
+  return { hide };
+})();
+
 /* ---------- 悬浮取词（阅读页正文词典 Tooltip） ---------- */
 const Dictip = (() => {
   let tip = null, hideT = null;

@@ -49,15 +49,16 @@ const EVSync = (() => {
     } catch (e) { /* 无后端 → 纯本地模式 */ }
   }
 
-  /* 服务器 → localStorage（服务器为空时保留本地，等待首次推送上传） */
+  /* 服务器 → localStorage（服务器为空时保留本地，等待首次推送上传）
+     返回 { changed, incomplete }：changed=云端有差异需刷新；incomplete=云端缺项（历史 bug 存过 null），应触发补传 */
   async function pullChanged() {
     const j = await req("/api/state");
     const map = { ev_srs: j.srs, ev_stats: j.stats, ev_prog: j.prog, ev_settings: j.settings };
-    let changed = false;
+    let changed = false, incomplete = false;
     KEYS.forEach(k => {
       const srv = map[k] ? JSON.stringify(map[k]) : null;
       let loc = null; try { loc = localStorage.getItem(k); } catch (e) {}
-      if (srv === null) return;              // 服务器无此类数据 → 不动本地
+      if (srv === null) { incomplete = true; return; }   // 服务器无此类数据 → 不动本地
       if (loc !== srv) changed = true;
       try { localStorage.setItem(k, srv); } catch (e) {}
     });
@@ -65,7 +66,7 @@ const EVSync = (() => {
     if (typeof Stats !== "undefined" && Stats.reload) Stats.reload(j.stats || null);
     if (typeof Prog !== "undefined" && Prog.reload) Prog.reload(j.prog || null);
     if (typeof Settings !== "undefined" && Settings.reload) Settings.reload(j.settings || null);
-    return changed;
+    return { changed, incomplete };
   }
 
   /* localStorage → 服务器（防抖 1.1s；被 srs.js / settings.js 的 save 钩子调用） */
@@ -81,7 +82,11 @@ const EVSync = (() => {
     pushing = true;
     try {
       const body = {};
-      KEYS.forEach(k => { try { body[k] = JSON.parse(localStorage.getItem(k) || "null"); } catch (e) {} });
+      /* 服务端 /api/state 的字段为 srs/stats/prog/settings（无 ev_ 前缀），
+         本地存储键带 ev_ 前缀，上传前须去掉，否则云端永远存 null */
+      KEYS.forEach(k => {
+        try { body[k.replace(/^ev_/, "")] = JSON.parse(localStorage.getItem(k) || "null"); } catch (e) {}
+      });
       await req("/api/state", { method: "PUT", body: JSON.stringify(body) });
     } finally {
       pushing = false;
@@ -353,7 +358,11 @@ const EVSync = (() => {
     if (mode !== "server") return;
     if (hasTok()) {
       try {
-        if (await pullChanged()) { location.reload(); return; }  // 云端较新 → 刷新一次后即为一致
+        const r = await pullChanged();
+        if (r.changed) { location.reload(); return; }  // 云端较新 → 刷新一次后即为一致
+        if (r.incomplete) {                            // 自愈：云端缺项（历史 null 状态）→ 立即补传本地
+          await pushNow().catch(() => {});
+        }
       } catch (e) { /* token 失效或网络问题 → 本地继续 */ }
     }
     if (document.readyState === "loading") {

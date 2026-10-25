@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理后台 · EverWord</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.3">
+  <link rel="stylesheet" href="css/styles.css?v=1.8.4">
   <style>
     /* ===== 管理后台（复用 Claymorphism 设计令牌） ===== */
     body { background: linear-gradient(160deg, #EEF0FF 0%, #FDF3FA 55%, #EDFAF6 100%); min-height: 100vh; }
@@ -146,7 +146,7 @@
       <div class="ad-actions">
         <button class="ad-btn" id="ad-refresh">刷新</button>
         <button class="ad-btn ghost" id="ad-csv">导出 CSV</button>
-        <a class="ad-btn ghost" href="index.html">返回应用</a>
+        <a class="ad-btn ghost" href="index.html" id="ad-back">返回应用</a>
       </div>
     </div>
 
@@ -382,6 +382,17 @@
     }
   }
   $("ad-refresh").addEventListener("click", () => (MODE === "self" ? loadSelf() : load()));
+
+  /* 返回应用：若本后台标签是由应用页新开的（opener 存在），聚焦原标签并关闭自己，避免开出第二个应用页 */
+  $("ad-back").addEventListener("click", e => {
+    if (window.opener && !window.opener.closed) {
+      e.preventDefault();
+      try { window.opener.focus(); } catch (err) {}
+      window.close();
+      /* 部分浏览器限制关闭非脚本打开的标签 → 关闭失败则就地返回 */
+      setTimeout(() => { location.href = "index.html"; }, 120);
+    }
+  });
 
   (function init() {
     if (hasTok) load();   /* load 内部处理 401 → 登录闸口；403 → 自动转个人视图 */

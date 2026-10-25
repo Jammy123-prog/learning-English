@@ -259,7 +259,7 @@ const SelTrans = (() => {
 
   function inProse(node) {
     const el = node && (node.nodeType === 1 ? node : node.parentElement);
-    return !!(el && el.closest && el.closest(".prose"));
+    return !!(el && el.closest && el.closest(".prose, .face.back"));   // 正文/精读 + 单词卡背面（释义/例句）
   }
 
   document.addEventListener("mouseup", e => {

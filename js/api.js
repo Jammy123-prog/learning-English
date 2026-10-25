@@ -49,24 +49,38 @@ const EVSync = (() => {
     } catch (e) { /* 无后端 → 纯本地模式 */ }
   }
 
-  /* 服务器 → localStorage（服务器为空时保留本地，等待首次推送上传）
-     返回 { changed, incomplete }：changed=云端有差异需刷新；incomplete=云端缺项（历史 bug 存过 null），应触发补传 */
+  /* 最后成功上传时的本地快照（ev_pushed）：用于判定"本地是否有未上传的修改"
+     —— 真正的"最后写入胜出"：云端与本地不一致时，谁更新谁赢 */
+  const PUSHED_KEY = "ev_pushed";
+  function pushedMap() { try { return JSON.parse(localStorage.getItem(PUSHED_KEY) || "{}") || {}; } catch (e) { return {}; } }
+
+  /* 服务器 → localStorage
+     返回 { changed, incomplete, needPush }：
+       changed=云端较新已覆盖本地（需刷新页面）；incomplete=云端缺项；needPush=本地有未上传的修改（本地胜出，待补传） */
   async function pullChanged() {
     const j = await req("/api/state");
     const map = { ev_srs: j.srs, ev_stats: j.stats, ev_prog: j.prog, ev_settings: j.settings };
-    let changed = false, incomplete = false;
+    const pm = pushedMap();
+    const eff = {};   // 各键的最终生效数据（供内存态 reload）
+    let changed = false, incomplete = false, needPush = false;
     KEYS.forEach(k => {
       const srv = map[k] ? JSON.stringify(map[k]) : null;
       let loc = null; try { loc = localStorage.getItem(k); } catch (e) {}
-      if (srv === null) { incomplete = true; return; }   // 服务器无此类数据 → 不动本地
-      if (loc !== srv) changed = true;
+      if (srv === null) { incomplete = true; eff[k.slice(3)] = null; return; }   // 云端缺项 → 不动本地
+      if (loc === srv) { eff[k.slice(3)] = map[k]; return; }
+      if (pm[k] != null && loc !== pm[k]) {
+        /* 本地自上次成功上传后又被修改过（如保存后 1.1s 内刷新）→ 本地胜出，稍后补传 */
+        needPush = true; eff[k.slice(3)] = JSON.parse(loc);
+        return;
+      }
       try { localStorage.setItem(k, srv); } catch (e) {}
+      changed = true; eff[k.slice(3)] = map[k];
     });
-    if (typeof SRS !== "undefined" && SRS.reload) SRS.reload(j.srs || null);
-    if (typeof Stats !== "undefined" && Stats.reload) Stats.reload(j.stats || null);
-    if (typeof Prog !== "undefined" && Prog.reload) Prog.reload(j.prog || null);
-    if (typeof Settings !== "undefined" && Settings.reload) Settings.reload(j.settings || null);
-    return { changed, incomplete };
+    if (typeof SRS !== "undefined" && SRS.reload) SRS.reload(eff.srs);
+    if (typeof Stats !== "undefined" && Stats.reload) Stats.reload(eff.stats);
+    if (typeof Prog !== "undefined" && Prog.reload) Prog.reload(eff.prog);
+    if (typeof Settings !== "undefined" && Settings.reload) Settings.reload(eff.settings);
+    return { changed, incomplete, needPush };
   }
 
   /* localStorage → 服务器（防抖 1.1s；被 srs.js / settings.js 的 save 钩子调用） */
@@ -81,13 +95,16 @@ const EVSync = (() => {
     if (pushing) { pending = true; return; }
     pushing = true;
     try {
-      const body = {};
+      const body = {}, pm = pushedMap();
       /* 服务端 /api/state 的字段为 srs/stats/prog/settings（无 ev_ 前缀），
          本地存储键带 ev_ 前缀，上传前须去掉，否则云端永远存 null */
       KEYS.forEach(k => {
-        try { body[k.replace(/^ev_/, "")] = JSON.parse(localStorage.getItem(k) || "null"); } catch (e) {}
+        let s = null;
+        try { s = localStorage.getItem(k); if (s != null) body[k.replace(/^ev_/, "")] = JSON.parse(s); } catch (e) {}
+        pm[k] = s;
       });
       await req("/api/state", { method: "PUT", body: JSON.stringify(body) });
+      try { localStorage.setItem(PUSHED_KEY, JSON.stringify(pm)); } catch (e) {}
     } finally {
       pushing = false;
       if (pending) { pending = false; pushNow().catch(() => {}); }
@@ -219,6 +236,7 @@ const EVSync = (() => {
   }
   function clearKeys() {
     KEYS.forEach(k => { try { localStorage.removeItem(k); } catch (e) {} });
+    try { localStorage.removeItem(PUSHED_KEY); } catch (e) {}   // 上传快照随账号清空，避免串号误判
   }
   function restoreSnapshot(name) {
     if (!name || !canLS()) return false;
@@ -359,8 +377,8 @@ const EVSync = (() => {
     if (hasTok()) {
       try {
         const r = await pullChanged();
-        if (r.changed) { location.reload(); return; }  // 云端较新 → 刷新一次后即为一致
-        if (r.incomplete) {                            // 自愈：云端缺项（历史 null 状态）→ 立即补传本地
+        if (r.changed) { location.reload(); return; }              // 云端较新 → 刷新一次后即为一致
+        if (r.needPush || r.incomplete) {                          // 本地有未上传修改（如保存后立刻刷新）或云端缺项 → 补传
           await pushNow().catch(() => {});
         }
       } catch (e) { /* token 失效或网络问题 → 本地继续 */ }

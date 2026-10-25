@@ -1141,6 +1141,12 @@ html.js .rv.in { opacity: 1; transform: none; }
 }
 .vr-mini:hover { transform: translateY(-1px); color: var(--primary); }
 .vr-def { margin-top: 3px; font-size: 12.5px; font-weight: 600; color: var(--ink-mut); line-height: 1.55; }
+.vr-para {
+  display: inline-block; margin-left: 8px; vertical-align: 1px;
+  font-size: 10.5px; font-weight: 800; color: var(--primary);
+  background: var(--blue-a); padding: 1px 8px; border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, .9); white-space: nowrap;
+}
 .prose .tk-x.hl { border-radius: 6px; animation: wordFlash 1.6s var(--ease-soft); }
 @keyframes wordFlash {
   0% { background: var(--yellow-b); box-shadow: 0 0 0 4px rgba(255, 176, 31, .35); }

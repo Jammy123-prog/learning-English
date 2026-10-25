@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/styles.css?v=1.8.1">
+<link rel="stylesheet" href="css/styles.css?v=1.8.2">
 <script>document.documentElement.className += " js";</script>
 </head>
 <body data-page="reading">
@@ -164,15 +164,15 @@
   <p class="foot-tag">科学记忆 · 沉浸阅读 · 主动回忆</p>
 </footer>
 
-<script src="js/icons.js?v=1.8.1"></script>
-<script src="js/data.js?v=1.8.1"></script>
-<script src="js/articles-ext.js?v=1.8.1"></script>
-<script src="js/api.js?v=1.8.1"></script>
-<script src="js/srs.js?v=1.8.1"></script>
-<script src="js/settings.js?v=1.8.1"></script>
-<script src="js/tts.js?v=1.8.1"></script>
-<script src="js/app.js?v=1.8.1"></script>
-<script src="js/news-data.js?v=1.8.1"></script>
+<script src="js/icons.js?v=1.8.2"></script>
+<script src="js/data.js?v=1.8.2"></script>
+<script src="js/articles-ext.js?v=1.8.2"></script>
+<script src="js/api.js?v=1.8.2"></script>
+<script src="js/srs.js?v=1.8.2"></script>
+<script src="js/settings.js?v=1.8.2"></script>
+<script src="js/tts.js?v=1.8.2"></script>
+<script src="js/app.js?v=1.8.2"></script>
+<script src="js/news-data.js?v=1.8.2"></script>
 <script>
 (function () {
   const artEl = document.getElementById("article");
@@ -201,23 +201,29 @@
 
   /* ---------------- 右侧词汇栏（TED 式）：重要词汇 + 双向联动 ---------------- */
   function renderRail(a) {
+    const proseEl = document.getElementById("prose");
     const keys = Object.keys(a.gloss);
+    const paraMap = firstParaMap(keys, proseEl);
+    /* 按文章出现顺序排列（未命中的排最后） */
+    keys.sort((x, y) => (paraMap.get(x) ?? 1e9) - (paraMap.get(y) ?? 1e9));
     vrCount.textContent = keys.length;
     vrList.innerHTML = keys.map(k => {
       const g = a.gloss[k];
-      return '<div class="vr-item" data-k="' + escHtml(k) + '">' +
+      const para = paraMap.has(k) ? paraMap.get(k) : null;
+      return '<div class="vr-item" data-k="' + escHtml(k) + '"' + (para != null ? ' data-para="' + para + '"' : "") + '>' +
         '<div class="vr-row">' +
           '<span class="vr-w">' + escHtml(k) + "</span>" +
           '<span class="vr-pos">' + escHtml(g.pos || "") + "</span>" +
           '<button class="vr-mini" data-act="say" data-w="' + escHtml(k) + '">' + ICONS.speaker + "<span>发音</span></button>" +
           '<button class="vr-mini" data-act="add" data-w="' + escHtml(k) + '">' + ICONS.plus + "<span>生词本</span></button>" +
         "</div>" +
-        '<div class="vr-def">' + escHtml(g.def) + "</div>" +
+        '<div class="vr-def">' + escHtml(g.def) +
+          (para != null ? '<span class="vr-para">第 ' + (para + 1) + " 段</span>" : "") + "</div>" +
       "</div>";
     }).join("");
   }
 
-  /* 词条 → 正文定位：取词还原后匹配词条键 */
+  /* 词条 → 正文定位：取词还原后匹配词条键（para 限定段落下标时只命中该段） */
   function stemCands(k) {
     const c = [k, k.replace(/'s$/, "")];
     if (/ies$/.test(k)) c.push(k.slice(0, -3) + "y");
@@ -228,21 +234,39 @@
     if (/ly$/.test(k)) c.push(k.slice(0, -2));
     return c;
   }
-  function locateWord(key, proseEl) {
+  function locateWord(key, proseEl, para) {
     const prose = proseEl || document.getElementById("prose");
     if (!prose) return;
+    const paras = [...prose.querySelectorAll("p")];
     const toks = prose.querySelectorAll(".tk-x");
     for (const t of toks) {
       const raw = String(t.dataset.w || "").toLowerCase();
-      if (stemCands(raw).includes(key)) {
-        t.scrollIntoView({ behavior: "smooth", block: "center" });
-        t.classList.remove("hl");
-        void t.offsetWidth;
-        t.classList.add("hl");
-        return;
-      }
+      if (!stemCands(raw).includes(key)) continue;
+      if (para != null && paras.indexOf(t.closest("p")) !== para) continue;
+      t.scrollIntoView({ behavior: "smooth", block: "center" });
+      t.classList.remove("hl");
+      void t.offsetWidth;
+      t.classList.add("hl");
+      return;
     }
+    /* 限定段落未命中 → 退回全文首个命中 */
+    if (para != null) return locateWord(key, proseEl);
     toast("「" + key + "」在当前正文没有高亮形态，可悬停正文查词");
+  }
+
+  /* 词 → 首次出现段落下标（供侧栏按文章顺序排列并显示位置） */
+  function firstParaMap(keys, proseEl) {
+    const set = new Set(keys), map = new Map();
+    if (!proseEl) return map;
+    [...proseEl.querySelectorAll("p")].forEach((p, i) => {
+      (p.textContent.match(/[A-Za-z][A-Za-z'’-]{2,}/g) || []).forEach(tok => {
+        if (!set.size) return;
+        for (const c of stemCands(tok.toLowerCase())) {
+          if (set.has(c)) { set.delete(c); map.set(c, i); break; }
+        }
+      });
+    });
+    return map;
   }
 
   vrList.addEventListener("click", e => {
@@ -259,7 +283,7 @@
       }
       return;
     }
-    if (item) locateWord(item.dataset.k);
+    if (item) locateWord(item.dataset.k, null, item.dataset.para != null ? +item.dataset.para : null);
   });
 
   /* 正文 → 词栏联动：悬停命中词时高亮词条（文章词栏 + 精读词栏同时生效） */
@@ -762,26 +786,28 @@
   const nsrCount = document.getElementById("nsr-count");
   let nsrParas = [], nsrRateV = 1;
 
-  /* 从正文中抽取词典命中的「新闻热词」（词形还原，按出现顺序，最多 24 个） */
+  /* 从正文中抽取词典命中的「新闻热词」（词形还原，按出现顺序记录所在段落，最多 24 个） */
   function newsVocab(paras) {
-    const tokens = (paras.join(" ").match(/[A-Za-z][A-Za-z'’-]{2,}/g) || []).map(t => t.toLowerCase());
     const seen = new Set(), hits = [];
-    for (const t of tokens) {
-      for (const c of stemCands(t)) {
-        if (DICT[c] && !seen.has(c)) {
-          seen.add(c);
-          const g = DICT[c];
-          hits.push({ k: c, pos: g.pos || "", def: g.def, ipa: g.ipa || "" });
+    paras.forEach((text, pi) => {
+      const tokens = (String(text).match(/[A-Za-z][A-Za-z'’-]{2,}/g) || []).map(t => t.toLowerCase());
+      for (const t of tokens) {
+        for (const c of stemCands(t)) {
+          if (DICT[c] && !seen.has(c)) {
+            seen.add(c);
+            const g = DICT[c];
+            hits.push({ k: c, pos: g.pos || "", def: g.def, ipa: g.ipa || "", para: pi });
+          }
         }
       }
-    }
+    });
     return hits.slice(0, 24);
   }
   function renderNsrRail() {
     const hits = newsVocab(nsrParas);
     nsrCount.textContent = hits.length;
     nsrVr.innerHTML = hits.map(h =>
-      '<div class="vr-item" data-k="' + escHtml(h.k) + '">' +
+      '<div class="vr-item" data-k="' + escHtml(h.k) + '" data-para="' + h.para + '">' +
         '<div class="vr-row">' +
           '<span class="vr-w">' + escHtml(h.k) + "</span>" +
           '<span class="vr-pos">' + escHtml(h.pos) + "</span>" +
@@ -789,7 +815,7 @@
           '<button class="vr-mini" data-act="add" data-w="' + escHtml(h.k) + '">' + ICONS.plus + "<span>生词本</span></button>" +
         "</div>" +
         (h.ipa ? '<div class="vr-ipa">' + escHtml(h.ipa) + "</div>" : "") +
-        '<div class="vr-def">' + escHtml(h.def) + "</div>" +
+        '<div class="vr-def">' + escHtml(h.def) + '<span class="vr-para">第 ' + (h.para + 1) + " 段</span></div>" +
       "</div>").join("");
   }
 
@@ -807,7 +833,7 @@
       }
       return;
     }
-    if (item) locateWord(item.dataset.k, nsrProse);
+    if (item) locateWord(item.dataset.k, nsrProse, item.dataset.para != null ? +item.dataset.para : null);
   });
 
   async function openReader(id) {

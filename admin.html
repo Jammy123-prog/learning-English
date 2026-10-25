@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理后台 · EverWord</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.4">
+  <link rel="stylesheet" href="css/styles.css?v=1.8.5">
   <style>
     /* ===== 管理后台（复用 Claymorphism 设计令牌） ===== */
     body { background: linear-gradient(160deg, #EEF0FF 0%, #FDF3FA 55%, #EDFAF6 100%); min-height: 100vh; }
@@ -389,8 +389,8 @@
       e.preventDefault();
       try { window.opener.focus(); } catch (err) {}
       window.close();
-      /* 部分浏览器限制关闭非脚本打开的标签 → 关闭失败则就地返回 */
-      setTimeout(() => { location.href = "index.html"; }, 120);
+      /* 浏览器若拒绝脚本关闭（未关掉时），才就地返回；已关闭则不再动作 */
+      setTimeout(() => { if (!window.closed) location.href = "index.html"; }, 400);
     }
   });
 

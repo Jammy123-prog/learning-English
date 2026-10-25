@@ -20,7 +20,7 @@ async function call(method, path, body, token) {
 (async () => {
   /* 1. health */
   const h = await call("GET", "/api/health");
-  ok(h.status === 200 && h.j.ok && h.j.version === "1.8.4", "health 返回 1.8.4");
+  ok(h.status === 200 && h.j.ok && h.j.version === "1.8.5", "health 返回 1.8.5");
   ok(h.j.words >= 160, "词库种子已入库（" + h.j.words + " 词，含全量目录）");
 
   /* 2. 注册 */

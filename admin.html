@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理后台 · EverWord</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.5">
+  <link rel="stylesheet" href="css/styles.css?v=1.8.6">
   <style>
     /* ===== 管理后台（复用 Claymorphism 设计令牌） ===== */
     body { background: linear-gradient(160deg, #EEF0FF 0%, #FDF3FA 55%, #EDFAF6 100%); min-height: 100vh; }
@@ -383,15 +383,13 @@
   }
   $("ad-refresh").addEventListener("click", () => (MODE === "self" ? loadSelf() : load()));
 
-  /* 返回应用：若本后台标签是由应用页新开的（opener 存在），聚焦原标签并关闭自己，避免开出第二个应用页 */
+  /* 返回应用：本后台与应用在同一标签页内导航（入口不再开新标签）——
+     从应用页进入时回退一步即可回到原页面（可能是单词/阅读页等）；直接访问时回首页 */
   $("ad-back").addEventListener("click", e => {
-    if (window.opener && !window.opener.closed) {
-      e.preventDefault();
-      try { window.opener.focus(); } catch (err) {}
-      window.close();
-      /* 浏览器若拒绝脚本关闭（未关掉时），才就地返回；已关闭则不再动作 */
-      setTimeout(() => { if (!window.closed) location.href = "index.html"; }, 400);
-    }
+    let same = false;
+    try { same = !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (err) {}
+    if (same && history.length > 1) { e.preventDefault(); history.back(); }
+    /* 否则按默认 href 跳回 index.html */
   });
 
   (function init() {

@@ -298,7 +298,7 @@ const EVSync = (() => {
       + '<div class="row"><span>同步范围</span><b>卡片 / 统计 / 进度 / 设置</b></div>'
       + '<div class="row"><span>服务器</span><b>本机 server.js · SQLite</b></div>'
       + "</div>"
-      + (admin ? '<a class="ev-admin-link" href="admin.html" target="_blank" title="查看账号使用与学习情况">'
+      + (admin ? '<a class="ev-admin-link" href="admin.html" title="查看账号使用与学习情况">'
           + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>'
           + "<span>进入管理后台</span></a>" : "")
       + '<button class="ev-go" id="ev-syncnow">立即同步</button>'

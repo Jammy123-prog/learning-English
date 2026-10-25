@@ -30,7 +30,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 
-const VERSION = "1.8.5";
+const VERSION = "1.8.6";
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "..", "data");
 const DB_FILE = path.join(DATA_DIR, "everword.db");

@@ -101,16 +101,45 @@ const SRS = (() => {
       save(); Stats.touch();
       return c;
     },
-    /* 生词本：加入即进入队列（次日到期）；非主词库词附带释义存档 */
+    /* 生词本：加入即打 starred 标记并进入队列（次日到期）；已存在的卡补打标记；
+       非主词库词附带释义存档（阅读/测验/搜索收藏的词与单词页收藏进入同一生词本） */
     addWord(w, meta) {
       if (!st.cards[w]) {
-        st.cards[w] = { ef: 2.5, reps: 0, ivl: 1, lapses: 0, due: startOfDay() + DAY };
+        st.cards[w] = { ef: 2.5, reps: 0, ivl: 1, lapses: 0, due: startOfDay() + DAY, starred: true };
         if (meta && !WORDS.some(x => x.w === w) && !FULL_SET.has(w)) {
           if (!st.extra[w]) st.extra[w] = meta;
         }
         save(); return true;
       }
+      if (!st.cards[w].starred) { st.cards[w].starred = true; save(); return true; }
       return false;
+    },
+    /* 生词本清单：全部 starred 卡片 + 词库元数据（供弹层展示/管理） */
+    vocabList() {
+      const meta = new Map(poolFor("全部").map(x => [x.w, x]));
+      const out = [];
+      for (const w in st.cards) {
+        const c = st.cards[w];
+        if (!c || !c.starred) continue;
+        const m = meta.get(w);
+        out.push({
+          w,
+          ipa: (m && m.ipa) || "",
+          pos: (m && m.pos) || "",
+          def: (m && (m.def || m.exZh)) || "（未收录释义）",
+          lv: (m && (m.lv || (typeof m.lvs === "string" ? m.lvs.split(",")[0] : ""))) || "收藏",
+          reps: c.reps | 0, due: c.due || 0
+        });
+      }
+      return out.sort((a, b) => a.w.localeCompare(b.w));
+    },
+    /* 移出生词本：未学过的卡直接删除；学过的保留复习进度，仅取消收藏 */
+    removeVocab(w) {
+      const c = st.cards[w];
+      if (!c || !c.starred) return false;
+      if ((c.reps | 0) === 0) delete st.cards[w];
+      else c.starred = false;
+      save(); return true;
     },
     /* 每日队列：到期复习优先，其后补足新词。
        预算按「级别 × 日期」独立计算（切换级别即获得该级别当日全新预算）：
@@ -177,7 +206,7 @@ const SRS = (() => {
     },
     /* 以下为全局统计（跨级别） */
     get learnedCount() { return Object.values(st.cards).filter(c => c.reps >= 1).length; },
-    get vocabCount() { return Object.keys(st.cards).length; },
+    get vocabCount() { return Object.values(st.cards).filter(c => c.starred).length; },
     get dueCount() { return Object.values(st.cards).filter(c => c.due <= Date.now()).length; },
     get tomorrowDue() {
       const t = startOfDay() + DAY, e = t + DAY;

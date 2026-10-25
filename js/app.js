@@ -112,6 +112,89 @@ const MasteredList = (() => {
   return { open, close };
 })();
 
+/* ---------- 生词本管理弹层（单词页/阅读页/搜索收藏统一入本；Anki 式浏览） ---------- */
+const VocabBank = (() => {
+  let mask = null;
+
+  function rowHtml(x) {
+    const st = x.reps === 0
+      ? '<span class="ml-due warn">待学习 · 明日入队</span>'
+      : (x.due <= Date.now() ? '<span class="ml-due warn">已到期 · 待复习</span>' : '<span class="ml-due">复习中</span>');
+    return '<div class="ml-row" data-w="' + escHtml(x.w) + '">'
+      + '<div class="ml-top">'
+      +   '<span class="ml-w">' + escHtml(x.w) + "</span>"
+      +   (x.ipa ? '<span class="ml-ipa">' + escHtml(x.ipa) + "</span>" : "")
+      +   '<span class="chip ' + lvClass(x.lv) + '">' + escHtml(x.lv) + "</span>"
+      +   st
+      + "</div>"
+      + '<div class="ml-def">' + (x.pos ? '<span class="ml-pos">' + escHtml(x.pos) + "</span>" : "") + escHtml(x.def) + "</div>"
+      + '<div class="vb-acts">'
+      +   '<button class="vb-btn" data-vb="say" data-w="' + escHtml(x.w) + '">' + ICONS.speaker + "<span>发音</span></button>"
+      +   '<button class="vb-btn vb-del" data-vb="del" data-w="' + escHtml(x.w) + '">' + ICONS.cross + "<span>移出生词本</span></button>"
+      + "</div>"
+      + "</div>";
+  }
+
+  function renderList(listEl, countEl, items, kw) {
+    const q = (kw || "").trim().toLowerCase();
+    const hit = q ? items.filter(x => x.w.toLowerCase().includes(q) || (x.def || "").toLowerCase().includes(q)) : items;
+    countEl.textContent = q ? hit.length + " / " + items.length : items.length;
+    listEl.innerHTML = hit.length
+      ? hit.map(rowHtml).join("")
+      : '<div class="ml-empty">' + (items.length ? "没有匹配「" + escHtml(q) + "」的单词" : "生词本还是空的 —— 单词卡、阅读页与取词气泡里都可以收藏") + "</div>";
+  }
+
+  function open() {
+    if (!mask) {
+      mask = document.createElement("div");
+      mask.id = "ml-mask";
+      mask.addEventListener("click", e => { if (e.target === mask) close(); });
+      document.body.appendChild(mask);
+      document.addEventListener("keydown", e => { if (e.key === "Escape" && mask.classList.contains("show")) close(); });
+    }
+    const items = SRS.vocabList();
+    mask.innerHTML = '<div class="ml-panel" role="dialog" aria-modal="true" aria-label="生词本">'
+      + '<div class="ml-head">'
+      +   "<div>"
+      +     '<span class="eyebrow">Vocab Bank · 生词本</span>'
+      +     '<h3 class="ml-title">我的生词 <b class="ml-count" id="vb-count">' + items.length + "</b></h3>"
+      +   "</div>"
+      +   '<button class="ml-close" data-vb="close" aria-label="关闭">✕</button>'
+      + "</div>"
+      + '<div class="ml-search"><input id="vb-q" type="search" placeholder="筛选单词或释义…" autocomplete="off" spellcheck="false"></div>'
+      + '<div class="ml-list" id="vb-list"></div>'
+      + '<p class="ml-note">单词卡、阅读词汇栏、悬浮取词与搜索详情收藏的词统一进入本生词本；新词次日开始复习，移出后未学过的卡片一并删除。</p>'
+      + "</div>";
+    const listEl = mask.querySelector("#vb-list");
+    const countEl = mask.querySelector("#vb-count");
+    const qIn = mask.querySelector("#vb-q");
+    const rerender = () => {
+      const cur = SRS.vocabList();
+      renderList(listEl, countEl, cur, qIn.value);
+    };
+    qIn.addEventListener("input", () => renderList(listEl, countEl, SRS.vocabList(), qIn.value));
+    mask.querySelector("[data-vb='close']").addEventListener("click", close);
+    listEl.addEventListener("click", e => {
+      const b = e.target.closest(".vb-btn");
+      if (!b) return;
+      const w = b.dataset.w;
+      if (b.dataset.vb === "say") {
+        if (!TTS.speak(w)) toast("当前浏览器不支持语音合成");
+      } else if (SRS.removeVocab(w)) {
+        toast("已移出生词本");
+        rerender();
+      }
+    });
+    renderList(listEl, countEl, items, "");
+    mask.classList.add("show");
+    setTimeout(() => qIn.focus(), 200);
+  }
+
+  function close() { if (mask) mask.classList.remove("show"); }
+
+  return { open, close };
+})();
+
 /* ---------- 划选翻译（正文/精读划选即自动出译文；滚动时译文跟随选区，点外部才关闭，参考沉浸式翻译/沙拉查词交互） ---------- */
 const SelTrans = (() => {
   const DEEPL_URL = "https://deepl-pro.com/#/translate?referral_code=h6uXFxH99w";

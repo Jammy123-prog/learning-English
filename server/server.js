@@ -30,7 +30,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { DatabaseSync } = require("node:sqlite");
 
-const VERSION = "1.8.2";
+const VERSION = "1.8.3";
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "..", "data");
 const DB_FILE = path.join(DATA_DIR, "everword.db");
@@ -525,6 +525,9 @@ function usageFromRow(r) {
   const stats = st.stats || {};
   const prog = st.prog || {};
   const settings = st.settings || {};
+  const day = 86400000;
+  const t0 = new Date(); t0.setHours(0, 0, 0, 0);
+  const tm0 = t0.getTime() + day, tm1 = tm0 + day;   // 明日零点区间
   return {
     id: r.id, name: r.name, role: r.role || "user",
     createdAt: r.created_at, lastSeen: r.last_seen, syncedAt: r.synced_at,
@@ -532,6 +535,7 @@ function usageFromRow(r) {
     cards: cards.length,
     learned: cards.filter(c => c.reps >= 1).length,
     due: cards.filter(c => (c.due || 0) <= Date.now()).length,
+    dueTomorrow: cards.filter(c => (c.due || 0) >= tm0 && (c.due || 0) < tm1).length,
     streak: stats.streak | 0,
     best: stats.best | 0,
     acc: stats.quizTotal ? Math.round((stats.quizCorrect || 0) / stats.quizTotal * 100) : null,

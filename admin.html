@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理后台 · EverWord</title>
-  <link rel="stylesheet" href="css/styles.css?v=1.8.2">
+  <link rel="stylesheet" href="css/styles.css?v=1.8.3">
   <style>
     /* ===== 管理后台（复用 Claymorphism 设计令牌） ===== */
     body { background: linear-gradient(160deg, #EEF0FF 0%, #FDF3FA 55%, #EDFAF6 100%); min-height: 100vh; }
@@ -243,7 +243,10 @@
     { k: "lastSeen", t: "最近活跃", render: u => fmtDT(u.lastSeen) },
     { k: "syncedAt", t: "最近同步", render: u => fmtDT(u.syncedAt) },
     { k: "learned", t: "已学 / 卡片", render: u => u.cards ? "<b>" + u.learned + "</b> / " + u.cards : '<span class="ad-muted">未开始</span>' },
-    { k: "due", t: "待复习", render: u => u.cards ? (u.due > 20 ? '<span class="ad-warn">' + u.due + "</span>" : u.due) : '<span class="ad-muted">—</span>' },
+    { k: "due", t: "待复习", render: u => u.cards
+        ? (u.due > 20 ? '<span class="ad-warn">' + u.due + "</span>" : u.due)
+          + (u.due ? "" : (u.dueTomorrow ? '<span class="ad-muted"> · 明日 ' + u.dueTomorrow + "</span>" : ""))
+        : '<span class="ad-muted">—</span>' },
     { k: "streak", t: "连续天数", render: u => u.streak ? '<span class="ad-good">' + u.streak + " 天</span>" : '<span class="ad-muted">0</span>' },
     { k: "readTotal", t: "阅读", render: u => u.readTotal
         ? "<b>" + u.readTotal + "</b> 篇" + (u.readToday ? "<span class='ad-muted'>（今日 " + u.readToday + "）</span>" : "")

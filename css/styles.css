@@ -378,6 +378,7 @@ h1 em, h2 em { font-style: normal; color: var(--primary); }
 .w-stats i { width: 2px; height: 16px; border-radius: 2px; background: #C9CDEE; }
 .w-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
 .w-meta .w-count { margin-left: auto; font-size: 12.5px; font-weight: 800; color: var(--ink-mut); font-variant-numeric: tabular-nums; }
+.w-front-acts { display: flex; gap: 10px; justify-content: center; }
 .w-progress { margin-bottom: 26px; }
 
 /* 3D 翻转卡片（黏土厚卡） */
@@ -1581,6 +1582,20 @@ html.js .rv.in { opacity: 1; transform: none; }
   background: var(--blue-a); padding: 1px 8px; border-radius: 999px;
 }
 .ml-note { margin: 8px 4px 2px; font: 600 11px var(--font-body); color: var(--ink-mut); }
+/* 生词本行内操作 */
+.vb-acts { display: flex; gap: 7px; margin-top: 8px; }
+.vb-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: 2px solid rgba(255, 255, 255, .95); cursor: pointer;
+  font: 800 11px var(--font-body); color: var(--ink-mut);
+  background: var(--lilac-a); padding: 5px 12px; border-radius: 999px;
+  box-shadow: 1px 2px 4px rgba(30, 27, 75, .10);
+  transition: transform .16s var(--ease-bounce), background .16s, color .16s;
+}
+.vb-btn:hover { transform: translateY(-1px); background: var(--lilac-b); color: var(--ink-deep); }
+.vb-btn .ic { width: 12px; height: 12px; flex: none; }
+.vb-del { color: #DC2626; background: #FEE2E2; }
+.vb-del:hover { background: #FECACA; color: #B91C1C; }
 .ml-empty { padding: 34px 8px; text-align: center; font: 700 13px var(--font-body); color: var(--ink-mut); }
 @media (max-width: 560px) {
   .ml-mask { padding: 10px; }
